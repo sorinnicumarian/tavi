@@ -15,11 +15,18 @@ An agent moves around a simulated home and performs tasks — pick up a knife, t
 
 Existing tools like AgentSpec only check one action at a time. They can't answer "did the agent ever hold a knife while standing near a child?" — that requires reasoning over a full sequence of steps. TAVI is being built to do that.
 
-### Current state (v0.1)
+### Current state (v0.2)
 
 Right now TAVI only does step 1: recording. It runs a hardcoded sequence of actions in a simulated kitchen, and writes every step to a JSONL trace file with the world state and facts. The checker, rule translator, and runtime monitor are not built yet.
 
-**Known limitation:** the facts extracted at each step (`holding`, `near`, `cooked`, `broken`, etc.) are hardcoded in `state_processor.py`. In the full system, the rule translator (LLM) should decide which facts are relevant based on the task — e.g. for "cook an egg" it would tell the processor to track `isCooked`, but for "place a glass in a cabinet" it wouldn't bother.
+TAVI currently covers trace collection and autonomous agent execution:
+
+- **`scenario_1_hardcoded`** — a fixed action sequence that navigates to a knife, picks it up, and drops it. Useful as a baseline.
+- **`scenario_2_autonomous`** — a Gemini 2.5 Flash agent that observes the scene at each step and decides actions autonomously. The LLM receives visible objects, current facts, and action history, and responds with the next action.
+
+Both scenarios write a JSONL trace to `traces/`. The checker, rule translator, and runtime monitor are not built yet.
+
+To select which scenarios run, edit `SCENARIOS_TO_RUN` in `tavi/main.py` and comment out what you don't need.
 
 ### Key concepts
 
@@ -35,7 +42,7 @@ Right now TAVI only does step 1: recording. It runs a hardcoded sequence of acti
        ↓  executes actions, returns scene metadata
   trace_collector
        ↓  extracts propositions, writes one JSONL line per step
-  traces/run.jsonl
+  traces/<scenario_name>.jsonl
        ↓  (future) checked against LTL/CTL safety rules
   violations report
 ```
@@ -43,18 +50,6 @@ Right now TAVI only does step 1: recording. It runs a hardcoded sequence of acti
 **AI2-THOR** ([Kolve et al., 2017](https://arxiv.org/abs/1712.05474)) is a 3D home simulator. It runs locally and exposes a Python API. It only accepts discrete actions — `MoveAhead`, `RotateRight`, `PickupObject`, etc. — not natural language. Docs: [navigation](https://ai2thor.allenai.org/ithor/documentation/navigation) · [full reference](https://ai2thor.allenai.org/ithor/documentation).
 
 **trace_collector** wraps AI2-THOR directly. It intercepts every action, snapshots the world state before and after, extracts propositions, and appends a JSONL line.
-
-### Project structure
-
-```
-trace_collector/   records every step as JSONL  ← current focus
-rule_translator/    LLM generates LTL/CTL rules from plain English  (not started)
-trace_checker/     checks traces against rules                      (not started)
-reporter/          explains violations in plain English             (not started)
-monitor/           interrupts the agent in real time if unsafe      (not started)
-tests/
-Docs/              papers, meeting log, project brief
-```
 
 ---
 
@@ -84,12 +79,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**Windows:** AI2-THOR doesn't run natively on Windows. Install [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install) with Ubuntu and run everything from inside it. Ollama can stay on Windows — WSL2 reaches it at `host.docker.internal:11434`.
-
+**Windows:**
 ```bash
-# inside WSL2
 python3.12 -m venv .venv
-source .venv/bin/activate
+.venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
@@ -112,7 +105,18 @@ python -m tavi.main
 
 Loads a kitchen scene in AI2-THOR, navigates to a knife, picks it up, and drops it. A window shows the simulation. Each step is printed in the terminal and written to `traces/run.jsonl`.
 
+Runs all scenarios listed in `SCENARIOS_TO_RUN` in `tavi/main.py`. Each scenario writes its trace to `traces/<scenario_name>.jsonl`. A window shows the simulation; steps are printed in the terminal.
+
 First run downloads the Unity binary (~1GB) — takes a few minutes, cached after that.
+
+### Scenarios
+
+| Scenario | Description |
+|---|---|
+| `scenario_1_hardcoded` | Fixed action sequence — navigates to knife, picks it up, drops it |
+| `scenario_2_autonomous` | Gemini 2.5 Flash agent — observes scene and decides actions autonomously, but same goal as 1 |
+
+Comment out entries in `SCENARIOS_TO_RUN` to skip them.
 
 ---
 

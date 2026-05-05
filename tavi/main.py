@@ -2,26 +2,32 @@ import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import argparse
+from dotenv import load_dotenv
 
 from tavi.simulation.simulator import Simulator
 from tavi.traces.trace_collector import TraceCollector
-from tavi.simulation.scenarios import simple_scenario_1
+from tavi.simulation.scenarios import scenario_1_hardcoded
+from tavi.simulation.scenarios import scenario_2_autonomous
 
+load_dotenv()
 
-def main(scene: str, output: str):
-    sim = Simulator(scene=scene)
-    trace = TraceCollector(sim.controller, output_path=output)
+# Comment out scenarios you don't want to run
+SCENARIOS_TO_RUN = [
+    # scenario_1_hardcoded,
+    scenario_2_autonomous,
+]
 
-    simple_scenario_1.run(sim, trace)
-
-    sim.stop()
-    print(f"\nTrace written to: {output}  ({trace.step_id} steps)")
+SCENE = "FloorPlan1"
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--scene", default="FloorPlan1")
-    parser.add_argument("--output", default="traces/run.jsonl")
-    args = parser.parse_args()
-    main(args.scene, args.output)
+    for scenario in SCENARIOS_TO_RUN:
+        output = f"traces/{scenario.__name__}.jsonl"
+        print(f"\n=== Running {scenario.__name__} ===")
+
+        sim = Simulator(scene=SCENE)
+        trace = TraceCollector(sim.controller, output_path=output)
+        scenario.run(sim, trace)
+        sim.stop()
+
+        print(f"Trace written to: {output}  ({trace.step_id} steps)")

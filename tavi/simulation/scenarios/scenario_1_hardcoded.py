@@ -18,8 +18,12 @@ def run(sim: Simulator, trace: TraceCollector):
     if not knife:
         return
 
+    degrees_per_rotation = 90
+    full_rotation = 360
+    max_rotation_attempts = (full_rotation // degrees_per_rotation) * 2  # two full turns for partial occlusion
+
     visible_knife = None
-    for _ in range(8):
+    for _ in range(max_rotation_attempts):
         visible_knife = sim.get_visible(knife["objectId"])
         if visible_knife:
             break

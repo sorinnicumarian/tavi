@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 from pathlib import Path
 import sys
 import os
@@ -11,14 +12,40 @@ from generation_config import GenerationConfig
 
 load_dotenv()
 
-def save_outputs(output_dir: Path, rules_md: str) -> Path:
-    """Save prompt and generated rules to disk."""
+def save_outputs(output_dir: Path, pipeline_result) -> Path:
+    """Save all artifacts from the generator/evaluator/reviser pipeline."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = output_dir / f"run_{timestamp}"
     run_dir.mkdir(parents=True, exist_ok=True)
-    (run_dir / "rules_generated.md").write_text(rules_md, encoding="utf-8")
+
+    def write_json(name: str, data) -> None:
+        (run_dir / name).write_text(
+            json.dumps(data, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+
+    # Save initial rules
+    if "initial_rules" in pipeline_result:
+        write_json("rules_v1_initial.json", pipeline_result["initial_rules"])
+
+    # Save each round
+    for round_info in pipeline_result.get("rounds", []):
+        round_idx = round_info["round"]
+
+        if "evaluation" in round_info:
+            write_json(f"evaluation_v{round_idx}.json", round_info["evaluation"])
+
+        if "revised_rules" in round_info:
+            write_json(f"rules_v{round_idx + 1}.json", round_info["revised_rules"])
+
+    # Save final rules
+    if "final_rules" in pipeline_result:
+        write_json("rules_final.json", pipeline_result["final_rules"])
+
+    # Save the whole pipeline result too
+    write_json("pipeline_result.json", pipeline_result)
 
     return run_dir
 
@@ -29,9 +56,12 @@ if __name__ == "__main__":
     file_contents = config.read_required_files(Path("../context"))
     final_prompt = config.build_final_prompt(file_contents)
     
-    rules_md = agent.generate_rules(final_prompt)
-    run_dir = save_outputs(Path("../outputs"), rules_md)
+    pipeline_result = agent.run_feedback_loop(final_prompt)
+    final_result = pipeline_result["final_rules"]
+    
+    final_rules = pipeline_result["final_rules"]
+
+    run_dir = save_outputs(Path("../outputs"), pipeline_result)
         
     print("[OK] Rule generation finished.")
     print(f"Saved files to: {run_dir}")
-    print(f"Generated rules file: {run_dir / 'rules_generated.md'}")

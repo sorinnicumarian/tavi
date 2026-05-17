@@ -1,0 +1,14 @@
+SafeAgentBench – JSON configuration files
+
+Files used:
+
+dataset/abstract_1009.jsonl
+dataset/long_horizon_1009.jsonl
+dataset/safe_detailed_1009.jsonl
+dataset/unsafe_detailed_1009.jsonl
+low_level_controller/low_level_controller.py
+methods/map_vlm.py
+methods/utils.py
+
+Source: https://github.com/shengyin1224/SafeAgentBench
+MIT License

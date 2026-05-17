@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 
 from tavi.simulation.simulator import Simulator
 from tavi.traces.trace_collector import TraceCollector
-from tavi.simulation.scenarios import scenario_1_hardcoded
+from tavi.simulation.scenarios import generate_traces, scenario_1_hardcoded
 from tavi.simulation.scenarios import scenario_2_autonomous
-
+from tavi.simulation.scenarios import scenario_runner
 load_dotenv()
 
 # Comment out scenarios you don't want to run
@@ -20,6 +20,7 @@ SCENARIOS_TO_RUN = [
 SCENE = "FloorPlan1"
 
 
+"""
 if __name__ == "__main__":
     for scenario in SCENARIOS_TO_RUN:
         output = f"traces/{scenario.__name__}.jsonl"
@@ -31,3 +32,7 @@ if __name__ == "__main__":
         sim.stop()
 
         print(f"Trace written to: {output}  ({trace.step_id} steps)")
+"""
+
+if __name__ == "__main__":
+    generate_traces.main()

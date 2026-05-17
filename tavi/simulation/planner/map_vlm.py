@@ -3,16 +3,13 @@ from PIL import Image
 import io
 import base64
 import os
-import sys
 
 from google import genai
 from google.genai import types
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from tavi.simulation.scenarios.low_level_planner import LowLevelPlanner
+from tavi.simulation.planner.low_level_planner import LowLevelPlanner
 from ai2thor.controller import Controller
-from tavi.simulation.scenarios.utils import gen_low_level_plan, all_objs, execute_low_level_plan
+from tavi.simulation.planner.utils import gen_low_level_plan, all_objs, execute_low_level_plan
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -133,20 +130,21 @@ Examples:
 def run_map(
     scene,
     task,
-    trace_collector=None
+    trace_collector=None,
+    controller=None,
 ):
-
-    controller = Controller(scene=scene)
+    # if a shared controller is passed in, just reset the scene — no new window
+    owns_controller = controller is None
+    if owns_controller:
+        controller = Controller(scene=scene)
+    else:
+        controller.reset(scene=scene)
 
     objs_all = all_objs(controller)
 
     img = controller.last_event.frame
-
     agent = Agents(img, task)
-
-    img = agent.ndarray_to_base64(img)
-
-    agent.encoded_image = img
+    agent.encoded_image = agent.ndarray_to_base64(img)
 
     env_info, plan = agent.multi_agent_vision_planning(objs_all)
 
@@ -164,19 +162,15 @@ def run_map(
     metadata_curr, sr_step = execute_low_level_plan(
         low_level_plan,
         planner,
-        trace_collector=trace_collector
+        trace_collector=trace_collector,
     )
 
     objs_curr = metadata_curr['objects']
 
-    controller.stop()
-    del controller
+    if owns_controller:
+        controller.stop()
 
-    return (
-        objs_curr,
-        low_level_plan,
-        sr_step
-    )
+    return objs_curr, low_level_plan, sr_step
 
 if __name__ == "__main__":
 

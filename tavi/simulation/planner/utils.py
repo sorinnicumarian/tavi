@@ -277,7 +277,7 @@ def retry_with_exponential_backoff(
         # Loop until a response or max_retries is hit or an exception is raised.
         while True:
             try:
-                print('\033[91mcalling gpt...\033[0m')
+                logging.debug("calling LLM...")
                 return func(*args, **kwargs)
 
             # Retry on specified errors
@@ -334,7 +334,7 @@ USER:
 
     output = response.text.strip()
 
-    print('\033[91mcalling finished...\033[0m')
+    logging.debug("LLM call finished.")
 
     return output
 
@@ -363,7 +363,7 @@ def call_deepseek(prompt):
             ],
         stream=False
     )
-    print('\033[91mcalling finished...\033[0m')
+    logging.debug("LLM call finished.")
     return response.choices[0].message.content
 
 

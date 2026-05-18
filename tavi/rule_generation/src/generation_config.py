@@ -7,13 +7,12 @@ REQUIRED_FILES = [
     "ai2thor_object_states.md",
     "hazards_types.md",
     "ltl_patterns.md",
-    "rule_generation_prompt.md",
 ]
 
 class GenerationConfig:
     
     @staticmethod
-    def read_required_files(context_dir: Path) -> Dict[str, str]:
+    def read_required_files(context_dir: Path, prompt_dir: Path) -> Dict[str, str]:
         """Read all required markdown files from the context directory."""
         contents: Dict[str, str] = {}
 
@@ -24,6 +23,8 @@ class GenerationConfig:
                 missing.append(str(path))
                 continue
             contents[filename] = path.read_text(encoding="utf-8")
+
+        contents["rule_generation_prompt.md"] = (prompt_dir / "rule_generation_prompt.md").read_text(encoding="utf-8")
 
         if missing:
             joined = "\n".join(f"  - {m}" for m in missing)

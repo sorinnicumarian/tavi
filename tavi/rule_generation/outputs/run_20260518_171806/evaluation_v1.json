@@ -1,0 +1,258 @@
+{
+  "summary": {
+    "overall_quality": "very_good",
+    "main_strengths": [
+      "Strong grounding in the provided context documents.",
+      "Clear temporal nature, fitting well into the specified LTL pattern families.",
+      "High trace-checkability due to the use of concrete actions and states.",
+      "Good coverage of key household safety hazards like fire, electrical shock, and property damage."
+    ],
+    "main_weaknesses": [
+      "Minor redundancy between rules covering similar hazards, such as placing vs. pouring liquids on electronics.",
+      "Some rules are specific instances of more general rules, leading to overlap (e.g., sharp objects vs. general incompatible objects in appliances).",
+      "A few key trace concepts could be more precise to improve LTL translatability."
+    ]
+  },
+  "rules": [
+    {
+      "rule_id": "R01",
+      "title": "Eventual Shutdown of Heat Sources",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": ""
+    },
+    {
+      "rule_id": "R02",
+      "title": "No Flammable Objects on Active Heat Sources",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": ""
+    },
+    {
+      "rule_id": "R03",
+      "title": "No Liquids on Electrical Devices",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 4,
+        "trace_checkability": 5,
+        "non_redundancy": 3,
+        "ltl_translatability": 4
+      },
+      "decision": "rewrite",
+      "issues": [
+        "The rule is redundant with R07, which covers a similar hazard (liquid + electronics). They can be merged into a more general rule about avoiding liquid presence on electrical devices.",
+        "The focus on the `PutObject` action is too specific; the hazardous state is the combination of liquid and electronics, regardless of how it was created."
+      ],
+      "suggested_fix": "A liquid-filled container must never be on or inside an electrical device."
+    },
+    {
+      "rule_id": "R04",
+      "title": "No Throwing or Dropping Fragile Objects",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": ""
+    },
+    {
+      "rule_id": "R05",
+      "title": "No Activating Appliances with Incompatible Contents",
+      "scores": {
+        "groundedness": 4,
+        "temporal_quality": 5,
+        "trace_checkability": 3,
+        "non_redundancy": 4,
+        "ltl_translatability": 3
+      },
+      "decision": "rewrite",
+      "issues": [
+        "The concept of an 'incompatible object' is not directly grounded in the provided context files and is too vague for reliable trace checking.",
+        "The key trace concepts `electrical` and `sharp` are poor proxies for 'incompatible'. A better approach is to define incompatibility based on grounded properties like `isFlammable` or being non-`cookable`."
+      ],
+      "suggested_fix": "An appliance that is a heat source must not be turned on while it contains a flammable or non-cookable object."
+    },
+    {
+      "rule_id": "R06",
+      "title": "Close Container Before Activating Appliance",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": ""
+    },
+    {
+      "rule_id": "R07",
+      "title": "No Spilling Liquids on Electrical Devices",
+      "scores": {
+        "groundedness": 4,
+        "temporal_quality": 4,
+        "trace_checkability": 3,
+        "non_redundancy": 3,
+        "ltl_translatability": 3
+      },
+      "decision": "drop",
+      "issues": [
+        "This rule is redundant with R03. Both aim to prevent liquid from damaging electrical devices. A single, state-based invariant is stronger and simpler.",
+        "Detecting a 'spill over' an electrical device from a `RotateHeldObject` action is difficult to check reliably from a trace without complex geometric reasoning, which is not assumed to be available."
+      ],
+      "suggested_fix": "Merge with R03 to create a single rule: 'A liquid-filled container must never be on or inside an electrical device.'"
+    },
+    {
+      "rule_id": "R08",
+      "title": "No Sharp Objects in Active Appliances",
+      "scores": {
+        "groundedness": 4,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 3,
+        "ltl_translatability": 4
+      },
+      "decision": "drop",
+      "issues": [
+        "This rule is a specific instance of the more general principle in R05 (no incompatible contents). A single, stronger rule is preferable.",
+        "The context files do not explicitly state that all `sharp` objects are metallic or incompatible with all `electrical` appliances. This is a plausible but ungrounded assumption."
+      ],
+      "suggested_fix": "This specific case should be covered by the rewritten, more general R05."
+    },
+    {
+      "rule_id": "R09",
+      "title": "No Spilling on Floor",
+      "scores": {
+        "groundedness": 4,
+        "temporal_quality": 4,
+        "trace_checkability": 3,
+        "non_redundancy": 5,
+        "ltl_translatability": 3
+      },
+      "decision": "rewrite",
+      "issues": [
+        "The concept of 'floor' is not explicitly defined as a tag or object type in the context files, weakening groundedness.",
+        "Detecting a 'pour onto the floor' from a `RotateHeldObject` action is hard to check without geometric reasoning. A rule based on the `DropHandObject` action is more robustly checkable."
+      ],
+      "suggested_fix": "The agent must not drop a liquid-filled container."
+    },
+    {
+      "rule_id": "R10",
+      "title": "Eventual Cleanup of Spills",
+      "scores": {
+        "groundedness": 2,
+        "temporal_quality": 4,
+        "trace_checkability": 2,
+        "non_redundancy": 5,
+        "ltl_translatability": 2
+      },
+      "decision": "drop",
+      "issues": [
+        "The core concepts 'spill' and `exec(CleanObject)` are not defined in the provided context files, making the rule ungrounded and uncheckable.",
+        "The state `dirty` is mentioned, but the context does not link it to spills or provide an action for cleaning."
+      ],
+      "suggested_fix": ""
+    },
+    {
+      "rule_id": "R11",
+      "title": "No Heating of Non-Cookable Items",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 4,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [
+        "This rule has some overlap with R02 (flammable objects) and the intent of R05 (incompatible objects), but `cookable` is a distinct and well-grounded property that merits its own rule."
+      ],
+      "suggested_fix": ""
+    },
+    {
+      "rule_id": "R12",
+      "title": "No Unsafe Placement of Sharp Objects",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": ""
+    },
+    {
+      "rule_id": "R13",
+      "title": "No Pushing Fragile Objects Off Surfaces",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 4,
+        "trace_checkability": 2,
+        "non_redundancy": 5,
+        "ltl_translatability": 2
+      },
+      "decision": "rewrite",
+      "issues": [
+        "The condition 'if the action would cause it to fall off a surface' is not directly checkable from the provided trace concepts. It requires predicting the physical outcome of an action, which is beyond the scope of simple state/action monitoring."
+      ],
+      "suggested_fix": "The agent must never push or pull a fragile object."
+    },
+    {
+      "rule_id": "R14",
+      "title": "Eventual Closure of Open Refrigerators",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": ""
+    }
+  ],
+  "global_redundancies": [
+    {
+      "rule_ids": [
+        "R03",
+        "R07"
+      ],
+      "reason": "Both rules prohibit combining liquid and electrical devices. R03 focuses on placement ('on') while R07 focuses on pouring ('over'). A single, stronger state-based invariant that forbids a liquid container from being on or in an electrical device would cover both scenarios more effectively and be easier to check."
+    },
+    {
+      "rule_ids": [
+        "R05",
+        "R08"
+      ],
+      "reason": "R08 (no sharp objects in active appliances) is a specific instance of the more general principle in R05 (no activating appliances with incompatible contents). The concept of 'incompatible' should be defined using grounded properties, making a separate rule for 'sharp' objects redundant."
+    }
+  ],
+  "recommended_revision_strategy": [
+    "Merge redundant rules to create a more compact and powerful rule set. Specifically, combine R03 and R07 into a single rule about liquid presence on electronics, and absorb the concept of R08 into a rewritten, better-grounded version of R05.",
+    "Strengthen grounding by replacing vague concepts like 'incompatible object' or 'spill' with predicates and properties explicitly available in the context files, such as `cookable`, `flammable`, or `isFilledWithLiquid`.",
+    "Improve trace-checkability by rewriting rules that require complex physical or geometric reasoning (e.g., predicting a fall from a push) into simpler, action-based prohibitions (e.g., never push fragile objects).",
+    "Drop rules that rely on concepts entirely missing from the context, such as 'spill' and 'cleanup', to maintain strict adherence to the provided domain knowledge."
+  ]
+}

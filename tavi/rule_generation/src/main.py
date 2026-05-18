@@ -53,7 +53,7 @@ if __name__ == "__main__":
     agent = EnglishRuleGeneratorAgent()
     
     config = GenerationConfig()
-    file_contents = config.read_required_files(Path("../context"))
+    file_contents = config.read_required_files(Path("./context"), Path("./prompts"))
     final_prompt = config.build_final_prompt(file_contents)
     
     pipeline_result = agent.run_feedback_loop(final_prompt)
@@ -61,7 +61,7 @@ if __name__ == "__main__":
     
     final_rules = pipeline_result["final_rules"]
 
-    run_dir = save_outputs(Path("../outputs"), pipeline_result)
+    run_dir = save_outputs(Path("./outputs"), pipeline_result)
         
     print("[OK] Rule generation finished.")
     print(f"Saved files to: {run_dir}")

@@ -1,0 +1,219 @@
+{
+  "summary": {
+    "overall_quality": "very_good",
+    "main_strengths": [
+      "Strong grounding in the provided context documents.",
+      "Clear and concise plain-English rule descriptions.",
+      "Good use of temporal patterns relevant to household safety.",
+      "High trace-checkability and LTL translatability for most rules."
+    ],
+    "main_weaknesses": [
+      "Minor redundancy between some rules, particularly around heating unsafe objects.",
+      "Some rules could be slightly more precise in their wording to improve clarity and reduce ambiguity.",
+      "A few key trace concepts are not perfectly grounded or could be more specific (e.g., 'Microwave')."
+    ]
+  },
+  "rules": [
+    {
+      "rule_id": "R01",
+      "title": "Eventual Shutdown of Heat Sources",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": "None. The rule is well-formed and fundamental."
+    },
+    {
+      "rule_id": "R02",
+      "title": "No Flammable Objects on Active Heat Sources",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 4,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [
+        "This rule has a partial overlap with R05 and R08, which also deal with unsafe heating. However, it is specific enough about the 'on' relation and 'flammable' tag to be valuable on its own."
+      ],
+      "suggested_fix": "None. The rule is strong enough to keep, but its relationship to other heating rules should be noted."
+    },
+    {
+      "rule_id": "R03",
+      "title": "No Liquid Containers on Electrical Devices",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": "None. The rule is well-formed and covers a critical electrical hazard."
+    },
+    {
+      "rule_id": "R04",
+      "title": "No Throwing or Dropping Fragile Objects",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": "None. This is a clear and important rule for property damage prevention."
+    },
+    {
+      "rule_id": "R05",
+      "title": "No Activating Heat Sources with Unsafe Contents",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 4,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [
+        "This rule is a more general version of R08 ('No Heating of Non-Cookable Items') and is related to R02. It focuses on the action of activation, which makes it distinct and valuable."
+      ],
+      "suggested_fix": "None. The focus on the `ToggleObjectOn` action provides a unique and important safety constraint."
+    },
+    {
+      "rule_id": "R06",
+      "title": "Close Appliance Before Activation",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": "None. This is a classic and well-defined precedence rule for appliance safety."
+    },
+    {
+      "rule_id": "R07",
+      "title": "No Dropping Liquid Containers",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 4,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "rewrite",
+      "issues": [
+        "The rule is slightly imprecise. It should be conditional on the agent holding the container, similar to R04."
+      ],
+      "suggested_fix": "If the agent is holding a liquid-filled container, it must not drop it."
+    },
+    {
+      "rule_id": "R08",
+      "title": "No Heating of Non-Cookable Items",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 3,
+        "ltl_translatability": 5
+      },
+      "decision": "rewrite",
+      "issues": [
+        "This rule is largely subsumed by the more general R05, which covers both non-cookable and flammable items. It could be dropped, but merging its scope into R05 is a better strategy."
+      ],
+      "suggested_fix": "Merge with R05. The combined rule should be 'A heat-producing appliance must not be turned on while it contains a flammable or non-cookable object.' Since R05 already states this, R08 can be dropped."
+    },
+    {
+      "rule_id": "R09",
+      "title": "No Unsafe Placement of Sharp Objects",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": "None. The rule is specific, well-grounded, and addresses a unique hazard."
+    },
+    {
+      "rule_id": "R10",
+      "title": "No Pushing or Pulling Fragile Objects",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": "None. This rule correctly identifies a distinct mechanism for property damage that is not covered by dropping or throwing."
+    },
+    {
+      "rule_id": "R11",
+      "title": "Eventual Closure of Refrigerators",
+      "scores": {
+        "groundedness": 5,
+        "temporal_quality": 5,
+        "trace_checkability": 5,
+        "non_redundancy": 5,
+        "ltl_translatability": 5
+      },
+      "decision": "keep",
+      "issues": [],
+      "suggested_fix": "None. This is a good example of an eventual response rule applied to a non-heat appliance."
+    },
+    {
+      "rule_id": "R12",
+      "title": "No Sharp Objects in Active Microwaves",
+      "scores": {
+        "groundedness": 4,
+        "temporal_quality": 5,
+        "trace_checkability": 4,
+        "non_redundancy": 4,
+        "ltl_translatability": 4
+      },
+      "decision": "rewrite",
+      "issues": [
+        "The concept 'Microwave' is not explicitly defined as a derived tag in the context, making grounding weak. The rule is also a specific instance of the more general principle of not heating unsafe items (related to R05 and R08)."
+      ],
+      "suggested_fix": "Generalize the rule to cover all metallic objects, not just sharp ones, and assume 'isMetallic' can be derived. A better rule would be: 'A metallic object must never be inside an active microwave.' This requires adding 'isMetallic' and 'isMicrowave' as derivable tags for the LTL translation stage."
+    }
+  ],
+  "global_redundancies": [
+    {
+      "rule_ids": [
+        "R05",
+        "R08"
+      ],
+      "reason": "R08 ('No Heating of Non-Cookable Items') is a specific case of R05 ('No Activating Heat Sources with Unsafe Contents'), which also includes flammable objects. R05 is the stronger, more general rule."
+    },
+    {
+      "rule_ids": [
+        "R02",
+        "R05",
+        "R08"
+      ],
+      "reason": "These three rules all concern the unsafe combination of objects and active heat sources. R02 focuses on the state of a flammable object being 'on' a heat source. R05 focuses on the action of 'turning on' a heat source with unsafe contents. R08 focuses on the state of a non-cookable object being 'in' or 'on' a heat source. While related, R02 and R05 are distinct enough in their temporal focus (state vs. action) to be kept, but R08 is largely redundant with R05."
+    }
+  ],
+  "recommended_revision_strategy": [
+    "Merge R08 into R05 by dropping R08, as R05 is a more comprehensive rule covering the same hazard.",
+    "Rewrite R07 to be conditional on the agent holding the object, making it consistent with R04.",
+    "Rewrite R12 to be more general and address the weak grounding of 'Microwave'. Generalize from 'sharp' to 'metallic' objects and explicitly note the need for 'isMicrowave' and 'isMetallic' as derived concepts for the next stage.",
+    "Review the final set for any remaining minor overlaps after revisions are applied."
+  ]
+}

@@ -29,22 +29,22 @@ For rule generation, object states should be understood as symbolic conditions t
 ### pickupable
 - Meaning: the object is of a kind that can be picked up and carried by the agent.
 - Safety relevance: pickupable objects can be transported into hazardous contexts such as heat sources, sinks, fragile areas, or electrical devices.
-- Useful trace predicates / phrases: pickupable, carriable, can be picked up, holding
+- trace predicates: pickupable
 
 ### isPickedUp
 - Meaning: the object is currently being held by the agent.
 - Safety relevance: being held is a key state in many temporal hazard chains, because it allows transport, pouring, throwing, or unsafe placement.
-- Useful trace predicates / phrases: held, being carried, in hand, picked up
+- trace predicates: holding
 
 ### moveable
 - Meaning: the object can be moved through force or physical interaction even if it is not picked up.
 - Safety relevance: moveable objects can still be displaced into unsafe positions by pushing, pulling, or collisions.
-- Useful trace predicates / phrases: moveable, can be moved, displaceable
+- trace predicates: moveable
 
 ### isMoving
 - Meaning: the object is currently in motion.
 - Safety relevance: movement can indicate unstable or dangerous situations such as falling, rolling, or recently disturbed fragile objects.
-- Useful trace predicates / phrases: moving, in motion, displaced
+- trace predicates: moving
 
 ---
 
@@ -53,12 +53,12 @@ For rule generation, object states should be understood as symbolic conditions t
 ### receptacle
 - Meaning: the object can contain or support other objects.
 - Safety relevance: receptacles are central to many safety rules because dangerous states often depend on what is placed in, on, or near them.
-- Useful trace predicates / phrases: receptacle, container, support surface, can contain objects
+- trace predicates: receptacle
 
 ### receptacleObjectIds
 - Meaning: the object currently contains or supports other objects.
 - Safety relevance: lets rules talk about unsafe combinations such as an object inside a microwave, on a stove, in a sink, or near another risky object.
-- Useful trace predicates / phrases: contains, holds, has inside, has on top, on, inside, in (the last three refer to the first argument of the state)
+- trace predicates: on
 
 ### parentReceptacles
 - Meaning: the object is currently inside or on another receptacle.
@@ -72,22 +72,22 @@ For rule generation, object states should be understood as symbolic conditions t
 ### openable
 - Meaning: the object can be opened and closed.
 - Safety relevance: openable objects often gate access to contents and enable later risky interactions.
-- Useful trace predicates / phrases: openable, can be opened,
+- trace predicates: openable
 
 ### isOpen
 - Meaning: the object is currently open.
 - Safety relevance: open objects expose contents, allow insertion or removal, and often participate in action sequences such as open -> place -> close -> activate.
-- Useful trace predicates / phrases: open, opened, unsealed
+- trace predicates: open
 
 ### toggleable
 - Meaning: the object can be switched on and off.
 - Safety relevance: toggleable devices often become active hazard sources when turned on.
-- Useful trace predicates / phrases: toggleable, can be turned on, can be switched
+- trace predicates: toggleable
 
 ### isToggled
 - Meaning: the object is currently on or active.
 - Safety relevance: one of the most important states for safety rules because an active device may produce heat, power, water flow, or another ongoing effect.
-- Useful trace predicates / phrases: on, active, running, switched on, enabled, toggled_on
+- trace predicates: toggled_on
 
 ---
 
@@ -96,42 +96,42 @@ For rule generation, object states should be understood as symbolic conditions t
 ### breakable
 - Meaning: the object can enter a broken state.
 - Safety relevance: breakable objects are relevant to property-damage rules and to secondary hazards caused by damaged objects.
-- Useful trace predicates / phrases: breakable, fragile enough to break, can be damaged
+- trace predicates: breakable
 
 ### isBroken
 - Meaning: the object is currently broken.
 - Safety relevance: indicates property damage and can also signal unsafe aftermath conditions.
-- Useful trace predicates / phrases: broken, damaged, shattered, cracked
+- trace predicates: broken
 
 ### sliceable
 - Meaning: the object can be sliced into another form.
 - Safety relevance: relevant for preparation-related rules and for sequencing rules involving knives or sharp tools.
-- Useful trace predicates / phrases: sliceable, can be cut
+- trace predicates / phrases: sliceable
 
 ### isSliced
 - Meaning: the object is currently in a sliced form.
 - Safety relevance: records that a cutting action has already occurred; useful in temporal sequencing and task-completion rules.
-- Useful trace predicates / phrases: sliced, cut, chopped
+- trace predicates / phrases: sliced
 
 ### cookable
 - Meaning: the object can become cooked.
 - Safety relevance: cookable objects are central to rules involving heat, appliances, timing, and shutdown obligations.
-- Useful trace predicates / phrases: cookable, can be heated, can be cooked
+- trace predicates / phrases: cookable
 
 ### isCooked
 - Meaning: the object is currently cooked.
 - Safety relevance: shows that heating or cooking has already taken effect; useful for stopping conditions and for detecting unsafe over-processing sequences.
-- Useful trace predicates / phrases: cooked, heated, prepared
+- trace predicates / phrases: cooked, hot
 
 ### dirtyable
 - Meaning: the object can become dirty or clean.
 - Safety relevance: useful for rules involving cleaning tasks, sink usage, or unsafe mixing of dirty and clean objects.
-- Useful trace predicates / phrases: dirtyable, can become dirty
+- trace predicates: dirtyable
 
 ### isDirty
 - Meaning: the object is currently dirty.
 - Safety relevance: relevant for cleaning-task constraints and for rules about when washing-related actions are appropriate.
-- Useful trace predicates / phrases: dirty, unclean, soiled
+- trace predicates: dirty
 
 ### canBeUsedUp
 - Meaning: the object can be consumed or depleted through use.
@@ -165,17 +165,17 @@ For rule generation, object states should be understood as symbolic conditions t
 ### canFillWithLiquid
 - Meaning: the object can hold a liquid.
 - Safety relevance: liquid-holding objects are central to spill, pouring, and electrical hazard rules.
-- Useful trace predicates / phrases: can hold liquid, liquid container, fillable
+- trace predicates: fillable
 
 ### isFilledWithLiquid
 - Meaning: the object is currently filled with some liquid.
 - Safety relevance: filled containers are especially important for rules about pouring, spills, and unsafe contact with electronics or fragile objects.
-- Useful trace predicates / phrases: filled, contains liquid, full of liquid, filled_with_liquid
+- trace predicates: filled_with_liquid (first argument)
 
 ### fillLiquid
 - Meaning: specifies which liquid is currently inside the object, such as water, coffee, or wine.
 - Safety relevance: the liquid type may matter for hazard interpretation and task-specific safety constraints.
-- Useful trace predicates / phrases: filled with water, filled with coffee, filled with wine, contains water
+- trace predicates: filled_with_liquid (second argument)
 
 ---
 
@@ -186,37 +186,32 @@ These tags are useful abstractions for rule generation. They may be inferred fro
 ### isHeatSource
 - Meaning: the object can actively heat other objects when used or activated.
 - Safety relevance: a core tag for rules about unsafe proximity, placement, or delayed shutdown.
-- Useful trace predicates / phrases: heat source, hot appliance, active heater
+- trace predicates: heat_source
 
 ### isColdSource
 - Meaning: the object can cool other objects.
 - Safety relevance: useful mainly for storage and state-change reasoning.
-- Useful trace predicates / phrases: cold source, cooling device
+- trace predicates: cold_source
 
 ### isFragile
 - Meaning: the object is easily damaged or likely to break if dropped, thrown, or struck.
 - Safety relevance: central to property-damage rules and careful-handling constraints.
-- Useful trace predicates / phrases: fragile, breakable, delicate
+- trace predicates: fragile
 
 ### isSharp
 - Meaning: the object can cut or slice and should be treated as a sharp tool.
 - Safety relevance: relevant for unsafe handling, carrying, or placement rules.
-- Useful trace predicates / phrases: sharp, cutting tool, blade
+- trace predicates: sharp
 
 ### isElectrical
 - Meaning: the object is an electrical device or is strongly associated with electrical risk.
 - Safety relevance: central to rules about liquids, activation, overheating, and misuse.
-- Useful trace predicates / phrases: electrical device, electronic object, powered device
-
-### isLiquidContainer
-- Meaning: the object can contain liquid and is commonly used to transport or pour it.
-- Safety relevance: useful for spill and pouring hazards, especially near electrical or fragile targets.
-- Useful trace predicates / phrases: cup, mug, bowl, bottle, liquid container
+- trace predicates: electrical
 
 ### isFlammable
 - Meaning: the object should be treated as capable of burning or as unsafe near heat sources.
 - Safety relevance: useful for heat-related hazard rules even when flammability is not directly represented as a native simulator state.
-- Useful trace predicates / phrases: flammable, combustible, burnable
+- trace predicates: flammable
 
 ---
 

@@ -66,7 +66,7 @@ _CAPABILITY_FLAGS: list[tuple[str, str]] = [
     ("cookable",    "cookable"),
     ("moveable",    "moveable"),
     ("dirtyable",   "dirtyable"),
-    ("canFillWithLiquid", "can_fill_with_liquid"),
+    ("canFillWithLiquid", "fillable"),
 ]
 
 # Distance threshold (metres) below which an object is considered "near" agent
@@ -116,9 +116,9 @@ def process_state(metadata: dict, id_map: dict[str, str]) -> list[str]:
       moving(id)                      — object is currently moving
       hot(id)                         — temperature == "Hot"
       cold(id)                        — temperature == "Cold"
-      filled_with(id, liquid)         — filled with water / wine / coffee
-      heat_source_active(id)          — AI2-THOR native isHeatSource flag
-      cold_source_active(id)          — AI2-THOR native isColdSource flag
+      filled_with_liquid(id, liquid)         — filled with water / wine / coffee
+      heat_source(id)                 — AI2-THOR native isHeatSource flag
+      cold_source(id)                 — AI2-THOR native isColdSource flag
       material(id, mat)               — salient material (Wood/Metal/Glass/…)
 
     Static capabilities (intrinsic properties, never change):
@@ -146,9 +146,9 @@ def process_state(metadata: dict, id_map: dict[str, str]) -> list[str]:
 
         # ── AI2-THOR native heat/cold source flags ────────────────────────────
         if obj.get("isHeatSource"):
-            facts.append(f"heat_source_active({sid})")
+            facts.append(f"heat_source({sid})")
         if obj.get("isColdSource"):
-            facts.append(f"cold_source_active({sid})")
+            facts.append(f"cold_source({sid})")
 
         # ── temperature state ─────────────────────────────────────────────────
         temp = obj.get("temperature")
@@ -165,7 +165,7 @@ def process_state(metadata: dict, id_map: dict[str, str]) -> list[str]:
         # ── liquid fill ───────────────────────────────────────────────────────
         if obj.get("isFilledWithLiquid"):
             liquid = obj.get("fillLiquid") or "unknown"
-            facts.append(f"filled_with({sid},{liquid})")
+            facts.append(f"filled_with_liquid({sid},{liquid})")
 
         # ── static capability flags ───────────────────────────────────────────
         for ai2thor_key, predicate in _CAPABILITY_FLAGS:

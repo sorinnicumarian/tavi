@@ -123,6 +123,28 @@ Use `done` for before-end obligations.
 
 ---
 
+## Contextual state changes
+
+Some important environment changes are not caused by a directly emitted high-level action.
+
+AI2-THOR can update object states automatically because of context.
+
+Examples:
+
+- an empty fillable object placed under a running water source can become filled with water
+- a dirty object placed under running water can become clean
+- an empty mug placed in an active coffee machine can become filled with coffee and become hot
+- a cookable object placed in an active heating appliance can become cooked or hot
+
+The trace does not contain an explicit action such as:
+
+```text
+exec(FillObject,{x})
+exec(CleanObject,{x})
+exec(HeatObject,{x})
+
+---
+
 ## Allowed predicate vocabulary
 
 You may only use the following predicate forms.
@@ -139,6 +161,11 @@ toggled_on(x)
 moving(x)
 ```
 
+Important:
+- near(x) means x is near the agent, not near another object.
+- on(x, y) means x is contained in, placed in, resting on, or supported by receptacle y.
+- has_position(...) exists in the trace but is forbidden for first-stage LTL templates
+
 ### Stable object-property predicates
 
 ```text
@@ -149,6 +176,9 @@ openable(x)
 breakable(x)
 dirtyable(x)
 moveable(x)
+cookable(x)
+sliceable(x)
+fillable(x)
 ```
 
 ### Derived semantic predicates
@@ -159,28 +189,85 @@ cold_source(x)
 fragile(x)
 sharp(x)
 electrical(x)
-liquid_container(x)
 flammable(x)
 chemical(x)
+hot(x)
+cold(x)
 ```
 
 ### Relation predicates
 
 ```text
 on(x, y)
+filled_with_liquid({x},water)
+filled_with_liquid({x},wine)
+filled_with_liquid({x},coffee)
 ```
-
-For the first prototype, `on(x, y)` is the only allowed object-object relation.
 
 Do not use `inside(x, y)`, `contains(x, y)`, or `near(x, y)` unless the vocabulary is extended later.
 
 ### Action-attempt predicates
 
 ```text
-exec(action_text)
+exec(ActionName)
+exec(ActionName,{x})
 ```
 
-Only use this for attempted actions.
+Use exec(ActionName,{x}) when the action targets an object.
+
+Use exec(ActionName) when the action has no object argument.
+
+Important:
+
+exec(...) means the agent attempted the action.
+It does not guarantee the action succeeded.
+If the rule depends on an actual world-state change, prefer facts, added:FACT, or removed:FACT.
+
+Possible actions:
+
+MoveAhead, MoveBack, MoveLeft, MoveRight
+RotateLeft, RotateRight
+LookUp, LookDown
+Crouch, Stand
+
+PickupObject, PutObject, DropHandObject, ThrowObject, MoveHeldObjectAhead, MoveHeldObject, RotateHeldObject, DirectionalPush, PushObject, PullObject, TouchThenApplyForce
+
+OpenObject, CloseObject, ToggleObjectOn, ToggleObjectOff, BreakObject, SliceObject, CookObject, DirtyObject, FillObjectWithLiquid, EmptyLiquidFromObject
+
+Done
+
+### Material predicates
+
+```text
+material(x, mat)
+```
+
+Meaning: object x has salient material mat. Allowed material values:
+
+metal
+wood
+plastic
+glass
+ceramic
+stone
+fabric
+rubber
+food
+paper
+wax
+soap
+sponge
+organic
+
+Examples:
+material({x},metal)
+material({x},glass)
+material({x},paper)
+material({x},fabric)
+
+Use material predicates only when the rule truly depends on the object's physical material.
+
+Do not invent material values outside the allowed list.
 
 ### Delta predicates
 
@@ -220,7 +307,6 @@ has_position(x, y, z)
 distance(...)
 agent_position(...)
 agent_rotation(...)
-material(...)
 unsafe(...)
 dangerous(...)
 bad_context(...)

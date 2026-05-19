@@ -90,47 +90,6 @@ class LTLTemplateGenerationConfig:
             ),
         )
 
-    # ------------------------------------------------------------------
-    # Path validation and loading
-    # ------------------------------------------------------------------
-
-    def validate_paths(self) -> None:
-        """
-        Check that required input files exist.
-
-        Raises
-        ------
-        FileNotFoundError
-            If prompt, schema, or input rules file is missing.
-        """
-
-        required_files = {
-            "LTL-template prompt": self.prompt_path,
-            "LTL-template schema": self.schema_path,
-            "input rules": self.input_rules_path,
-        }
-
-        missing = [
-            f"{label}: {path}"
-            for label, path in required_files.items()
-            if not path.exists()
-        ]
-
-        if missing:
-            raise FileNotFoundError(
-                "Missing required file(s):\n" + "\n".join(missing)
-            )
-
-    def ensure_output_dir(self) -> None:
-        """Create the output directory if it does not exist."""
-
-        self.output_dir.mkdir(parents=True, exist_ok=True)
-
-    def load_prompt_template(self) -> str:
-        """Load the LTL-template translation prompt."""
-
-        return self.prompt_path.read_text(encoding="utf-8")
-
     def load_schema(self) -> JsonDict:
         """Load the JSON schema used to validate LTL-template outputs."""
 
@@ -235,14 +194,12 @@ class LTLTemplateGenerationConfig:
             rule.get("rule_id")
             or rule.get("Rule ID")
             or rule.get("id")
-            or self._extract_rule_id_from_text(source_key)
             or f"R{fallback_index:03d}"
         )
 
         title = (
             rule.get("title")
             or rule.get("Title")
-            or self._extract_title_from_source_key(source_key)
             or str(rule_id)
         )
 
@@ -302,34 +259,6 @@ class LTLTemplateGenerationConfig:
 
         return normalized
 
-    @staticmethod
-    def _extract_rule_id_from_text(text: str) -> Optional[str]:
-        """
-        Extract IDs such as R01 or T03 from strings like:
-            "Rule R01: Eventual Shutdown of Heat Sources"
-        """
-
-        if not text:
-            return None
-
-        match = re.search(r"\b([A-Z]\d{2,4})\b", text)
-        return match.group(1) if match else None
-
-    @staticmethod
-    def _extract_title_from_source_key(source_key: str) -> Optional[str]:
-        """
-        Extract title from keys like:
-            "Rule R01: Eventual Shutdown of Heat Sources"
-        """
-
-        if not source_key:
-            return None
-
-        if ":" in source_key:
-            return source_key.split(":", 1)[1].strip()
-
-        return source_key.strip() or None
-
     # ------------------------------------------------------------------
     # Prompt rendering
     # ------------------------------------------------------------------
@@ -353,7 +282,7 @@ class LTLTemplateGenerationConfig:
         """
 
         if prompt_template is None:
-            prompt_template = self.load_prompt_template()
+            prompt_template = self.prompt_path.read_text(encoding="utf-8")
 
         normalized_rule = self.normalize_rule(rule, fallback_index=1)
 
@@ -380,7 +309,7 @@ class LTLTemplateGenerationConfig:
             - prompt
         """
 
-        prompt_template = self.load_prompt_template()
+        prompt_template = self.prompt_path.read_text(encoding="utf-8")
         rules = self.load_input_rules()
 
         rendered = []

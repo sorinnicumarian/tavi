@@ -22,7 +22,12 @@ Those jobs belong to:
 
 from __future__ import annotations
 
+import json
+import os
 from typing import Any
+
+from google import genai
+from google.genai import types
 
 
 class LTLTemplateTranslatorAgent:
@@ -35,77 +40,64 @@ class LTLTemplateTranslatorAgent:
     3. a callable that accepts prompt and returns text/response
     """
 
-    def __init__(self, model_client: Any):
-        self.model_client = model_client
+    def __init__(
+        self,
+        model: str = "gemini-2.5-pro",
+        temperature: float = 0.2,
+        max_output_tokens: int = 8192,
+        thinking_budget: int = 1024,
+        max_revision_rounds = 2,
+    ):
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY not set in environment")
+        
+        self.model = model
+        self.client = genai.Client(api_key=api_key)
+        self.temperature = temperature
+        self.max_output_tokens = max_output_tokens
+        self.thinking_budget = thinking_budget
+        self.max_revision_rounds = max_revision_rounds
+        self.history: list[str] = []
 
-    def translate(self, prompt: str) -> str:
-        """
-        Translate one rendered prompt into a raw LLM response.
-
-        Parameters
-        ----------
-        prompt:
-            Fully rendered prompt containing one plain-English rule.
-
-        Returns
-        -------
-        str
-            Raw text response from the model.
-        """
-
+    def translate_rule(self, prompt: str) -> str:
         if not prompt or not prompt.strip():
             raise ValueError("Prompt is empty.")
 
-        response = self._call_model(prompt)
-        return self._extract_text(response)
+        text = self._call_model(prompt)
+        return text
 
     def _call_model(self, prompt: str) -> Any:
-        """Call the underlying model client."""
-
-        if hasattr(self.model_client, "generate_content"):
-            return self.model_client.generate_content(prompt)
-
-        if hasattr(self.model_client, "generate"):
-            return self.model_client.generate(prompt)
-
-        if callable(self.model_client):
-            return self.model_client(prompt)
-
-        raise TypeError(
-            "Unsupported model_client. Expected generate_content(prompt), "
-            "generate(prompt), or a callable."
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=self.temperature,
+                max_output_tokens=self.max_output_tokens,
+                response_mime_type="application/json",
+                thinking_config=types.ThinkingConfig(thinking_budget=self.thinking_budget),
+                
+            ),
         )
+        
+        print(f"Raw Gemini response:")
+        print("prompt tokens:", response.usage_metadata.prompt_token_count)
+        print("output tokens:", response.usage_metadata.candidates_token_count)
+        print("total tokens:", response.usage_metadata.total_token_count)
 
-    @staticmethod
-    def _extract_text(response: Any) -> str:
-        """
-        Extract text from common model response shapes.
-
-        Supports:
-        - plain string
-        - Gemini-style response.text
-        - dictionary with 'text'
-        - fallback to str(response)
-        """
-
-        if isinstance(response, str):
-            return response
-
+        print("thinking tokens:", getattr(response.usage_metadata, "thoughts_token_count", None))
+        print("cached tokens:", getattr(response.usage_metadata, "cached_content_token_count", None))
+            
         text = getattr(response, "text", None)
-        if isinstance(text, str):
-            return text
+        if not text or not text.strip():
+            raise RuntimeError(
+                "Gemini returned an empty response. "
+                "Try a larger max_output_tokens, a different model, or inspect the raw API response."
+            )
 
-        if isinstance(response, dict) and isinstance(response.get("text"), str):
-            return response["text"]
-
-        return str(response)
-
-
-if __name__ == "__main__":
-    # Tiny local sanity check using a fake model.
-    class FakeModel:
-        def generate_content(self, prompt: str):
-            return '{"rule_id": "R01", "status": "expressible"}'
-
-    agent = LTLTemplateTranslatorAgent(FakeModel())
-    print(agent.translate("Translate this rule."))
+        try:
+            return json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError(
+                f"Gemini returned invalid JSON:\n{text}"
+            ) from exc

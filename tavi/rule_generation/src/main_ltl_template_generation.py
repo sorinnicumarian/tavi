@@ -14,6 +14,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List
 
+from dotenv import load_dotenv
 
 from ltl_template_generation_config import (
     LTLTemplateGenerationConfig,
@@ -25,89 +26,23 @@ from ltl_template_validator import LTLTemplateValidator
 
 JsonDict = Dict[str, Any]
 
-
-def build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Generate parametric LTL templates from plain-English safety rules."
-    )
-
-    parser.add_argument(
-        "--project-root",
-        type=str,
-        default=".",
-        help="Path to the rule_generation project root. Default: current directory.",
-    )
-
-    parser.add_argument(
-        "--input",
-        type=str,
-        default=None,
-        help=(
-            "Path to plain-English rules JSON file. "
-            "Default: outputs/plain_english_rules.json"
-        ),
-    )
-
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default=None,
-        help=(
-            "Directory for LTL-template outputs. "
-            "Default: outputs/ltl_templates"
-        ),
-    )
-
-    parser.add_argument(
-        "--model",
-        type=str,
-        default="gemini-2.5-pro",
-        help="Gemini model name.",
-    )
-
-    parser.add_argument(
-        "--temperature",
-        type=float,
-        default=0.1,
-        help="Gemini temperature for LTL-template generation.",
-    )
-
-    parser.add_argument(
-        "--max-output-tokens",
-        type=int,
-        default=8192,
-        help="Maximum Gemini output tokens.",
-    )
-
-    parser.add_argument(
-        "--thinking-budget",
-        type=int,
-        default=1024,
-        help="Gemini thinking budget.",
-    )
-
-    return parser
-
+load_dotenv()
 
 def main() -> None:
-    args = build_arg_parser().parse_args()
 
     config = LTLTemplateGenerationConfig.from_project_root(
-        project_root=args.project_root,
-        input_rules_path=args.input,
-        output_dir=args.output_dir,
+        project_root=".",
+        input_rules_path="outputs/plain_english_rules.json",
+        output_dir="outputs/ltl_templates",
     )
-
-    config.validate_paths()
-    config.ensure_output_dir()
 
     rendered_prompts = config.render_all_prompts()
 
     agent = LTLTemplateTranslatorAgent(
-        model=args.model,
-        temperature=args.temperature,
-        max_output_tokens=args.max_output_tokens,
-        thinking_budget=args.thinking_budget,
+        model="gemini-2.5-pro",
+        temperature=0.1,
+        max_output_tokens=8192,
+        thinking_budget=1024,
     )
 
     validator = LTLTemplateValidator(config.schema_path)
@@ -128,7 +63,7 @@ def main() -> None:
 
         try:
             generated = agent.translate_rule(prompt)
-            raw_text = agent.history[-1] if agent.history else json.dumps(generated)
+            raw_text = json.dumps(generated)
 
             raw_outputs.append(
                 {
@@ -139,16 +74,16 @@ def main() -> None:
                 }
             )
 
-            errors = validator.validate(generated)
+            result = validator.validate(generated)
 
-            if errors:
-                print(f"{rule_id}: rejected ({len(errors)} validation error(s))")
+            if not result.is_valid:
+                print(f"{rule_id}: rejected ({len(result.errors)} validation error(s))")
                 rejected.append(
                     {
                         "rule_id": rule_id,
                         "source_rule": source_rule,
                         "generated_template": generated,
-                        "errors": errors,
+                        "errors": result.errors,
                     }
                 )
             else:
@@ -162,7 +97,7 @@ def main() -> None:
                 {
                     "rule_id": rule_id,
                     "source_rule": source_rule,
-                    "raw_response": agent.history[-1] if agent.history else None,
+                    "raw_response": json.dumps(generated),
                     "exception": repr(exc),
                 }
             )
@@ -181,10 +116,10 @@ def main() -> None:
         "input_rules_path": str(config.input_rules_path),
         "prompt_path": str(config.prompt_path),
         "schema_path": str(config.schema_path),
-        "model": args.model,
-        "temperature": args.temperature,
-        "max_output_tokens": args.max_output_tokens,
-        "thinking_budget": args.thinking_budget,
+        "model": "gemini-2.5-pro",
+        "temperature":  0.1,
+        "max_output_tokens": 8192,
+        "thinking_budget": 1024,
         "total_rules": len(rendered_prompts),
         "accepted": len(accepted),
         "rejected": len(rejected),

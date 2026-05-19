@@ -54,6 +54,9 @@ ALLOWED_PROPERTY_PREDICATES: Set[str] = {
     "breakable",
     "dirtyable",
     "moveable",
+    "cookable",
+    "sliceable",
+    "fillable",
 }
 
 ALLOWED_SEMANTIC_PREDICATES: Set[str] = {
@@ -62,13 +65,14 @@ ALLOWED_SEMANTIC_PREDICATES: Set[str] = {
     "fragile",
     "sharp",
     "electrical",
-    "liquid_container",
     "flammable",
     "chemical",
+    "material",
 }
 
 ALLOWED_RELATION_PREDICATES: Set[str] = {
     "on",
+    "filled_with_liquid",
 }
 
 ALLOWED_BOUNDARY_PREDICATES: Set[str] = {
@@ -105,7 +109,6 @@ FORBIDDEN_PREDICATES: Set[str] = {
     "distance",
     "agent_position",
     "agent_rotation",
-    "material",
     "unsafe",
     "dangerous",
     "bad_context",
@@ -119,7 +122,6 @@ FORBIDDEN_SUBSTRINGS: Sequence[str] = (
     "distance(",
     "agent_position(",
     "agent_rotation(",
-    "material(",
     "unsafe(",
     "dangerous(",
     "bad_context(",

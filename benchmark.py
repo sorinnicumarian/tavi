@@ -73,10 +73,12 @@ def _safe_response_text(response) -> str:
 
 
 def _patch_model(model: str) -> None:
+    import tavi.simulation.planner.config as planner_config
     import tavi.simulation.planner.map_vlm as map_vlm
     import tavi.simulation.planner.utils as utils_mod
 
-    map_vlm.GEMINI_MODEL = model
+    planner_config.GEMINI_MODEL = model
+    planner_config.GEMINI_MAX_TOKENS = _max_tokens_for(model)
 
     def _call_gemini_patched(m, prompt, system_prompt="You are a helpful assistant.", temperature=0.2, max_tokens=1024):
         from google import genai

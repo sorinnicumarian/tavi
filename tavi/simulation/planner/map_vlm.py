@@ -16,7 +16,7 @@ load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 
-GEMINI_MODEL = "gemini-2.5-pro"
+import tavi.simulation.planner.config as planner_config
 
 class Table:
 
@@ -51,11 +51,11 @@ class Agents:
             contents = [prompt]
 
         response = client.models.generate_content(
-            model=GEMINI_MODEL,
+            model=planner_config.GEMINI_MODEL,
             contents=contents,
             config=types.GenerateContentConfig(
                 temperature=0,
-                max_output_tokens=16000,
+                max_output_tokens=planner_config.GEMINI_MAX_TOKENS,
             )
         )
 

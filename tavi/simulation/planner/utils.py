@@ -310,7 +310,7 @@ def call_gpt(
     prompt,
     system_prompt="You are a helpful assistant.",
     temperature=0.2,
-    max_tokens=1024
+    max_tokens=16000
 ):
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -324,7 +324,7 @@ USER:
 """
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model="gemini-2.5-pro",
         contents=full_prompt,
         config=types.GenerateContentConfig(
             temperature=temperature,

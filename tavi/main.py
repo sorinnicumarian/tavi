@@ -20,7 +20,7 @@ load_dotenv()
 _SCENARIOS_DIR = os.path.join(os.path.dirname(__file__), "simulation", "scenarios")
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-INPUT_FILE = os.path.join(_SCENARIOS_DIR, "safeagentbench_tasks", "safeagentbench_abstract_tasks.jsonl")
+INPUT_FILE = os.path.join(_SCENARIOS_DIR, "safeagentbench_tasks", "safeagentbench_long_horizon_tasks.jsonl")
 
 # Output trace mirrors the input name: safeagentbench_abstract_tasks → safeagentbench_abstract_traces
 _input_stem = Path(INPUT_FILE).stem.replace("_tasks", "")

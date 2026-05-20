@@ -16,7 +16,7 @@ load_dotenv()
 api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = "gemini-2.5-pro"
 
 class Table:
 
@@ -55,7 +55,7 @@ class Agents:
             contents=contents,
             config=types.GenerateContentConfig(
                 temperature=0,
-                max_output_tokens=2048,
+                max_output_tokens=16000,
             )
         )
 

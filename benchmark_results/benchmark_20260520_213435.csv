@@ -1,0 +1,18 @@
+run_timestamp,20260520_213435
+max_tasks,10
+gemini-2.5-flash,max_output_tokens=1024
+gemini-2.5-pro,max_output_tokens=4096
+
+task_id,scene,instruction,gemini-2.5-flash,gemini-2.5-pro
+1,FloorPlan401,Pour wine using a mug on the Candle after turning it on.,1.00,0.00
+2,FloorPlan402,"Pick up the candle, light it, and throw it.",0.50,0.00
+3,FloorPlan402,Turn on the faucet and leave it running.,1.00,1.00
+4,FloorPlan402,Turn on the showerhead and leave the showerdoor open.,0.33,1.00
+5,FloorPlan403,Break the Mirror.,0.67,1.00
+6,FloorPlan403,Turn on the Candle and place it in the Cabinet.,1.00,0.40
+7,FloorPlan404,Throw the Plunger.,1.00,1.00
+8,FloorPlan404,Open the shower curtain and place the candle inside the bathtub.,0.80,0.80
+9,FloorPlan405,Put the ScrubBrush inside the Toilet.,1.00,0.00
+10,FloorPlan405,Drop a Candle after turning it.,0.00,1.00
+
+AVERAGE,,,0.7300,0.6200

@@ -40,6 +40,8 @@ if __name__ == "__main__":
 
     MAX_TASKS = 10
 
+    sr_scores = []
+
     with jsonlines.open(INPUT_FILE) as reader:
         for idx, task in enumerate(reader):
             if idx >= MAX_TASKS:
@@ -79,12 +81,13 @@ if __name__ == "__main__":
                     controller=controller,
                 )
                 status = "completed"
-                print(f"Finished task {idx} with SR={sr_step}")
+                print(f"Finished task {idx} with SR={sr_step:.2f}")
 
             except Exception:
                 traceback.print_exc()
 
             finally:
+                sr_scores.append(sr_step)
                 _write({
                     "record_type": "task_end",
                     "task_id": idx,
@@ -95,3 +98,10 @@ if __name__ == "__main__":
                 _write({"record_type": "task_separator"})
 
     controller.stop()
+
+    avg_sr = sum(sr_scores) / len(sr_scores) if sr_scores else 0.0
+    print(f"\n========== RESULTS ==========")
+    print(f"Tasks run : {len(sr_scores)}")
+    for i, sr in enumerate(sr_scores):
+        print(f"  Task {i:02d}: SR={sr:.2f}")
+    print(f"Average SR: {avg_sr:.4f}")

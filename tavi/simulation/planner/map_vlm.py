@@ -55,7 +55,7 @@ class Agents:
             contents=contents,
             config=types.GenerateContentConfig(
                 temperature=0,
-                max_output_tokens=500,
+                max_output_tokens=2048,
             )
         )
 

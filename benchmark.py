@@ -4,8 +4,24 @@ Model benchmark — runs N tasks per category per model, saves results to CSV.
 Usage:
     python benchmark.py
 
+Prerequisites:
+    1. Activate the virtual environment:
+           source .venv/bin/activate
+    2. Set GEMINI_API_KEY in a .env file at the repo root:
+           GEMINI_API_KEY=your_key_here
+    3. AI2-THOR will open a window on macOS (headless not supported on Mac).
+       If it hangs, kill stale processes and retry:
+           pkill -f "AI2-THOR"; pkill -f "thor-OSX"
+
+Configuration (edit at top of file):
+    MODELS    — list of Gemini model strings to compare
+    MAX_TASKS — number of tasks to run per category per model
+    CATEGORIES — dict of category name -> .jsonl file path
+
 Output:
     benchmark_results/benchmark_<timestamp>.csv
+        Includes metadata block (timestamp, token limits per model),
+        per-task SR for each model, per-category averages, and overall average.
 """
 
 import csv

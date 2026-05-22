@@ -2,11 +2,11 @@
 
 ## Plain english rule generation
 
-python3 src/main_engligh_rule_generator.py
+python3 src/plain_english/main_english_rule_generator.py
 
 ## LTL rule generation
 
-python3 src/main_ltl_template_generation.py
+python3 src/ltl/main_ltl_template_generation.py
 
 # !Note
 

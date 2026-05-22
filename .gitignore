@@ -32,4 +32,4 @@ htmlcov/
 traces/*.jsonl
 
 #rule_generator outputs
-tavi/rule_generation/outputs/
+tavi/rule_generation/outputs/*

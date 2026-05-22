@@ -18,9 +18,9 @@ Your task is to convert one plain-English temporal safety rule into a precise, t
 
 You must be conservative, exact, and implementation-aware.
 
-You must only use the allowed predicate vocabulary.
+You must only use the allowed proposition vocabulary.
 
-If the rule cannot be expressed using the current predicate vocabulary, do not invent new predicates. Instead, return a structured `not_expressible_with_current_trace_predicates` JSON object.
+If the rule cannot be expressed using the current proposition vocabulary, do not invent new atoms. Instead, return a structured `not_expressible_with_current_trace_predicates` JSON object.
 
 ---
 
@@ -52,7 +52,134 @@ Important constraints:
 - Runtime traces are used later only for grounding and checking.
 - Do not assume a specific object instance unless it is represented by a variable.
 - Do not use raw JSON fields directly in LTL formulas.
-- Do not use predicates outside the allowed vocabulary.
+- Do not use atoms outside the allowed vocabulary.
+- Do not encode vague commonsense concepts directly as LTL atoms.
+
+---
+
+## Flloat-safe LTL atom syntax
+
+The LTL formula must be compatible with the flloat parser.
+
+Inside `formula_template` and `required_predicates`, every atomic proposition must use flloat-safe names.
+
+Atomic propositions may contain:
+
+```text
+letters
+digits
+underscores
+template variables in braces, such as {x}
+```
+
+Atomic propositions must not contain:
+
+```text
+(
+)
+,
+:
+spaces
+```
+
+Use the following canonical naming convention.
+
+### Unary atoms
+
+Unary object facts are written as:
+
+```text
+predicate__{x}
+```
+
+Examples:
+
+```text
+holding__{x}
+toggled_on__{h}
+heat_source__{h}
+flammable__{x}
+fragile__{x}
+electrical__{e}
+```
+
+### Binary relation atoms
+
+Binary relations are written as:
+
+```text
+relation__{x}__{y}
+```
+
+Examples:
+
+```text
+on__{x}__{r}
+filled_with_liquid__{x}__water
+filled_with_liquid__{x}__coffee
+filled_with_liquid__{x}__wine
+material__{x}__metal
+```
+
+### Delta atoms
+
+State-change atoms are written by prefixing an allowed base atom with `added__` or `removed__`.
+
+Examples:
+
+```text
+added__holding__{x}
+removed__holding__{x}
+added__toggled_on__{h}
+removed__toggled_on__{h}
+added__broken__{x}
+added__on__{x}__{r}
+removed__on__{x}__{r}
+```
+
+### Action-attempt atoms
+
+Action-attempt atoms are written as:
+
+```text
+exec__ActionName
+exec__ActionName__{x}
+```
+
+Use `exec__ActionName__{x}` when the action targets an object.
+
+Use `exec__ActionName` when the action has no object argument.
+
+Examples:
+
+```text
+exec__DropHandObject
+exec__ThrowObject__{x}
+exec__ToggleObjectOn__{h}
+exec__PutObject__{r}
+```
+
+Important:
+
+`exec__...` means the agent attempted the action. It does not guarantee that the action succeeded.
+
+If the rule depends on an actual world-state change, prefer state atoms, `added__...`, or `removed__...`.
+
+### Boundary atom
+
+The finite-trace boundary atom is:
+
+```text
+done
+```
+
+It means the task trace ended.
+
+It does not mean task success.
+
+It does not necessarily mean the agent executed a physical `Done` action.
+
+Use `done` for before-end obligations.
 
 ---
 
@@ -64,62 +191,61 @@ Each step contains facts that are true after an action attempt has been processe
 
 Use these meanings:
 
-### facts
-Facts are propositions true at the current step.
+### State atoms
 
-Example:
+State atoms are propositions true at the current step.
+
+Examples:
 
 ```text
-holding(mug_1)
-toggled_on(stoveburner_1)
-on(potato_1,countertop_1)
+holding__mug_1
+toggled_on__stoveburner_1
+on__potato_1__countertop_1
 ```
 
-### added:FACT
-`added:FACT` means `FACT` became true at this step.
+### Added atoms
+
+An atom with prefix `added__` means the corresponding base atom became true at this step.
 
 Example:
 
 ```text
-added:toggled_on(stoveburner_1)
+added__toggled_on__stoveburner_1
 ```
 
 This means the object just became toggled on.
 
-### removed:FACT
-`removed:FACT` means `FACT` stopped being true at this step.
+### Removed atoms
+
+An atom with prefix `removed__` means the corresponding base atom stopped being true at this step.
 
 Example:
 
 ```text
-removed:toggled_on(stoveburner_1)
+removed__toggled_on__stoveburner_1
 ```
 
 This means the object just stopped being toggled on.
 
-### exec(...)
-`exec(...)` means the agent attempted an action.
+### Action-attempt atoms
 
-Important:
+An atom with prefix `exec__` means the agent attempted an action.
+
+Example:
 
 ```text
-exec(...) does not guarantee that the action succeeded.
+exec__DropHandObject
+exec__ThrowObject__vase_1
+exec__ToggleObjectOn__stoveburner_1
 ```
 
-Use `exec(...)` only when the attempted behavior itself matters.
+Action-attempt atoms do not imply success. Use them only when the attempted behavior itself matters.
 
-If the rule depends on the world actually changing, prefer `facts`, `added:FACT`, or `removed:FACT`.
+### Done atom
 
-### done
 `done` is a virtual in-memory proposition added at the finite task boundary.
 
-It means the task trace ended.
-
-It does not mean task success.
-
-It does not necessarily mean the agent executed a physical `Done` action.
-
-Use `done` for before-end obligations.
+Use `done` for formulas that must be satisfied before the task ends.
 
 ---
 
@@ -136,161 +262,171 @@ Examples:
 - an empty mug placed in an active coffee machine can become filled with coffee and become hot
 - a cookable object placed in an active heating appliance can become cooked or hot
 
-The trace does not contain an explicit action such as:
+For contextual changes, use state or delta atoms rather than action-attempt atoms.
+
+Good examples:
 
 ```text
-exec(FillObject,{x})
-exec(CleanObject,{x})
-exec(HeatObject,{x})
+added__filled_with_liquid__{x}__water
+removed__dirty__{x}
+added__hot__{x}
+added__cooked__{x}
+```
 
 ---
 
-## Allowed predicate vocabulary
+## Allowed atomic proposition vocabulary
 
-You may only use the following predicate forms.
+You may only use the following atom families.
 
-### State predicates
+### State atoms
 
 ```text
-visible(x)
-near(x)
-holding(x)
-open(x)
-broken(x)
-toggled_on(x)
-moving(x)
+visible__{x}
+near__{x}
+holding__{x}
+open__{x}
+broken__{x}
+toggled_on__{x}
+moving__{x}
+cooked__{x}
+dirty__{x}
+sliced__{x}
+used_up__{x}
+hot__{x}
+cold__{x}
 ```
 
 Important:
-- near(x) means x is near the agent, not near another object.
-- on(x, y) means x is contained in, placed in, resting on, or supported by receptacle y.
-- has_position(...) exists in the trace but is forbidden for first-stage LTL templates
 
-### Stable object-property predicates
+- `near__{x}` means object `{x}` is near the agent, not near another object.
+- `on__{x}__{y}` means `{x}` is contained in, placed in, resting on, or supported by receptacle `{y}`.
+- Raw numeric positions are not allowed in first-stage LTL templates.
 
-```text
-pickupable(x)
-receptacle(x)
-toggleable(x)
-openable(x)
-breakable(x)
-dirtyable(x)
-moveable(x)
-cookable(x)
-sliceable(x)
-fillable(x)
-```
-
-### Derived semantic predicates
+### Stable object-property atoms
 
 ```text
-heat_source(x)
-cold_source(x)
-fragile(x)
-sharp(x)
-electrical(x)
-flammable(x)
-chemical(x)
-hot(x)
-cold(x)
+pickupable__{x}
+receptacle__{x}
+toggleable__{x}
+openable__{x}
+breakable__{x}
+dirtyable__{x}
+moveable__{x}
+cookable__{x}
+sliceable__{x}
+fillable__{x}
 ```
 
-### Relation predicates
+### Derived semantic atoms
 
 ```text
-on(x, y)
-filled_with_liquid({x},water)
-filled_with_liquid({x},wine)
-filled_with_liquid({x},coffee)
+heat_source__{x}
+cold_source__{x}
+fragile__{x}
+sharp__{x}
+electrical__{x}
+flammable__{x}
+chemical__{x}
+hot__{x}
+cold__{x}
 ```
 
-Do not use `inside(x, y)`, `contains(x, y)`, or `near(x, y)` unless the vocabulary is extended later.
-
-### Action-attempt predicates
+### Relation atoms
 
 ```text
-exec(ActionName)
-exec(ActionName,{x})
+on__{x}__{y}
+filled_with_liquid__{x}__water
+filled_with_liquid__{x}__wine
+filled_with_liquid__{x}__coffee
 ```
 
-Use exec(ActionName,{x}) when the action targets an object.
+Do not use object-object distance, binary near, inside, or contains unless the vocabulary is explicitly extended later.
 
-Use exec(ActionName) when the action has no object argument.
-
-Important:
-
-exec(...) means the agent attempted the action.
-It does not guarantee the action succeeded.
-If the rule depends on an actual world-state change, prefer facts, added:FACT, or removed:FACT.
-
-Possible actions:
-
-MoveAhead, MoveBack, MoveLeft, MoveRight
-RotateLeft, RotateRight
-LookUp, LookDown
-Crouch, Stand
-
-PickupObject, PutObject, DropHandObject, ThrowObject, MoveHeldObjectAhead, MoveHeldObject, RotateHeldObject, DirectionalPush, PushObject, PullObject, TouchThenApplyForce
-
-OpenObject, CloseObject, ToggleObjectOn, ToggleObjectOff, BreakObject, SliceObject, CookObject, DirtyObject, FillObjectWithLiquid, EmptyLiquidFromObject
-
-Done
-
-### Material predicates
+### Action-attempt atoms
 
 ```text
-material(x, mat)
+exec__MoveAhead
+exec__MoveBack
+exec__MoveLeft
+exec__MoveRight
+exec__RotateLeft
+exec__RotateRight
+exec__LookUp
+exec__LookDown
+exec__Crouch
+exec__Stand
+
+exec__PickupObject__{x}
+exec__PutObject__{x}
+exec__DropHandObject
+exec__ThrowObject__{x}
+exec__MoveHeldObjectAhead
+exec__MoveHeldObject
+exec__RotateHeldObject
+exec__DirectionalPush__{x}
+exec__PushObject__{x}
+exec__PullObject__{x}
+exec__TouchThenApplyForce__{x}
+
+exec__OpenObject__{x}
+exec__CloseObject__{x}
+exec__ToggleObjectOn__{x}
+exec__ToggleObjectOff__{x}
+exec__BreakObject__{x}
+exec__SliceObject__{x}
+exec__CookObject__{x}
+exec__DirtyObject__{x}
+exec__FillObjectWithLiquid__{x}
+exec__EmptyLiquidFromObject__{x}
 ```
 
-Meaning: object x has salient material mat. Allowed material values:
+Use action-attempt atoms only when the attempted behavior itself matters.
 
-metal
-wood
-plastic
-glass
-ceramic
-stone
-fabric
-rubber
-food
-paper
-wax
-soap
-sponge
-organic
+If the rule depends on an actual world-state change, prefer state atoms, `added__...`, or `removed__...`.
 
-Examples:
-material({x},metal)
-material({x},glass)
-material({x},paper)
-material({x},fabric)
+### Material atoms
 
-Use material predicates only when the rule truly depends on the object's physical material.
+```text
+material__{x}__metal
+material__{x}__wood
+material__{x}__plastic
+material__{x}__glass
+material__{x}__ceramic
+material__{x}__stone
+material__{x}__fabric
+material__{x}__rubber
+material__{x}__food
+material__{x}__paper
+material__{x}__wax
+material__{x}__soap
+material__{x}__sponge
+material__{x}__organic
+```
+
+Use material atoms only when the rule truly depends on the object's physical material.
 
 Do not invent material values outside the allowed list.
 
-### Delta predicates
+### Delta atoms
 
-```text
-added:FACT
-removed:FACT
-```
-
-where `FACT` must itself be an allowed predicate.
+Delta atoms may be formed by prefixing an allowed state or relation atom with `added__` or `removed__`.
 
 Allowed examples:
 
 ```text
-added:holding({x})
-removed:holding({x})
-added:toggled_on({h})
-removed:toggled_on({h})
-added:broken({x})
-added:on({x}, {y})
-removed:on({x}, {y})
+added__holding__{x}
+removed__holding__{x}
+added__toggled_on__{h}
+removed__toggled_on__{h}
+added__broken__{x}
+added__on__{x}__{y}
+removed__on__{x}__{y}
+added__filled_with_liquid__{x}__water
+removed__filled_with_liquid__{x}__water
 ```
 
-### Boundary predicate
+### Boundary atom
 
 ```text
 done
@@ -298,25 +434,25 @@ done
 
 ---
 
-## Forbidden predicate behavior
+## Forbidden atom behavior
 
 Do not use:
 
 ```text
-has_position(x, y, z)
-distance(...)
-agent_position(...)
-agent_rotation(...)
-unsafe(...)
-dangerous(...)
-bad_context(...)
-incompatible(...)
-near(x, y)
-inside(x, y)
-contains(x, y)
+has_position__...
+distance__...
+agent_position__...
+agent_rotation__...
+unsafe__...
+dangerous__...
+bad_context__...
+incompatible__...
+near__{x}__{y}
+inside__{x}__{y}
+contains__{x}__{y}
 ```
 
-Do not invent new predicates.
+Do not invent new atoms.
 
 Do not encode vague commonsense directly in LTL.
 
@@ -353,16 +489,22 @@ Use variables in braces inside predicates:
 Good:
 
 ```text
-G((added:toggled_on({h}) & heat_source({h})) -> ((!done) U (!toggled_on({h}) & !done)))
+G((added__toggled_on__{h} & heat_source__{h}) -> ((!done) U (!toggled_on__{h} & !done)))
 ```
 
 Bad:
 
 ```text
-G((added:toggled_on(h) & heat_source(h)) -> F removed:toggled_on(h))
+G((added__toggled_on__h & heat_source__h) -> F removed__toggled_on__h)
 ```
-
 Reason: variables must be written with braces in the template.
+
+Bad:
+
+```text
+G((added:toggled_on({h}) & heat_source({h})) -> F removed:toggled_on({h}))
+```
+Reason: atoms must use flloat-safe names and must not contain parentheses, commas, colons, or spaces.
 
 ---
 
@@ -452,25 +594,25 @@ If a heat source is turned on, it must eventually be turned off.
 Prefer:
 
 ```text
-added:toggled_on({h})
+added__toggled_on__{h}
 ```
 
 over:
 
 ```text
-exec(ToggleObjectOn({h}))
+exec__ToggleObjectOn__{h}
 ```
 
-because `exec(...)` may be a failed attempt.
+because action-attempt atoms may describe failed attempts.
 
 ### Use semantic tags as guards
 
-If a rule applies only to heat sources, fragile objects, electrical devices, or liquid containers, include the corresponding semantic predicate.
+If a rule applies only to heat sources, fragile objects, electrical devices, or liquid containers, include the corresponding semantic atom.
 
 Example:
 
 ```text
-added:toggled_on({h}) & heat_source({h})
+added__toggled_on__{h} & heat_source__{h}
 ```
 
 ### Do not collapse object variables
@@ -480,7 +622,7 @@ If a rule involves two roles, use two variables.
 Example:
 
 ```text
-on({x}, {h}) & flammable({x}) & heat_source({h})
+on__{x}__{h} & flammable__{x} & heat_source__{h}
 ```
 
 Do not reuse one variable for different object roles.
@@ -544,12 +686,12 @@ For expressible rules, output:
   "variables": {
     "x": {
       "description": "meaning of x",
-      "domain": "objects satisfying allowed_predicate(x)"
+      "domain": "objects satisfying allowed_atom__{x}"
     }
   },
-  "formula_template": "LTL template using {x}",
+  "formula_template": "LTL template using flloat-safe atoms and variables such as {x}",
   "required_predicates": [
-    "predicate({x})",
+    "allowed_atom__{x}",
     "done"
   ],
   "grounding_strategy": {
@@ -575,7 +717,7 @@ For non-expressible rules, output:
   "source_plain_english_rule": "Original rule text.",
   "pattern_family": "Best matching pattern family",
   "status": "not_expressible_with_current_trace_predicates",
-  "reason": "Why the rule cannot be expressed with the current predicate vocabulary.",
+  "reason": "Why the rule cannot be expressed with the current atomic proposition vocabulary.",
   "missing_concepts": [
     "missing concept 1",
     "missing concept 2"
@@ -616,21 +758,21 @@ Good output:
   "variables": {
     "h": {
       "description": "the heat source that becomes active",
-      "domain": "objects satisfying heat_source(h) and toggleable(h)"
+      "domain": "objects satisfying heat_source__{h} and toggleable__{h}"
     }
   },
-  "formula_template": "G((added:toggled_on({h}) & heat_source({h})) -> ((!done) U (!toggled_on({h}) & !done)))",
+  "formula_template": "G((added__toggled_on__{h} & heat_source__{h}) -> ((!done) U (!toggled_on__{h} & !done)))",
   "required_predicates": [
-    "added:toggled_on({h})",
-    "heat_source({h})",
-    "toggled_on({h})",
+    "added__toggled_on__{h}",
+    "heat_source__{h}",
+    "toggled_on__{h}",
     "done"
   ],
   "grounding_strategy": {
-    "h": "all object aliases that satisfy heat_source(h) and toggleable(h) in the task trace"
+    "h": "all object aliases that satisfy heat_source__{h} and toggleable__{h} in the task trace"
   },
   "notes": [
-    "The trigger uses added:toggled_on({h}) rather than exec(...) because exec only records an attempted action.",
+    "The trigger uses added__toggled_on__{h} because the rule depends on the actual state change.",
     "The response is checked before the virtual done boundary."
   ]
 }
@@ -666,26 +808,26 @@ Good output:
   "variables": {
     "x": {
       "description": "the flammable object",
-      "domain": "objects satisfying flammable(x)"
+      "domain": "objects satisfying flammable__{x}"
     },
     "h": {
       "description": "the active heat source",
-      "domain": "objects satisfying heat_source(h)"
+      "domain": "objects satisfying heat_source__{h}"
     }
   },
-  "formula_template": "G(!(flammable({x}) & heat_source({h}) & toggled_on({h}) & on({x}, {h})))",
+  "formula_template": "G(!(flammable__{x} & heat_source__{h} & toggled_on__{h} & on__{x}__{h}))",
   "required_predicates": [
-    "flammable({x})",
-    "heat_source({h})",
-    "toggled_on({h})",
-    "on({x}, {h})"
+    "flammable__{x}",
+    "heat_source__{h}",
+    "toggled_on__{h}",
+    "on__{x}__{h}"
   ],
   "grounding_strategy": {
-    "x": "all object aliases that satisfy flammable(x) in the task trace",
-    "h": "all object aliases that satisfy heat_source(h) in the task trace"
+    "x": "all object aliases that satisfy flammable__{x} in the task trace",
+    "h": "all object aliases that satisfy heat_source__{h} in the task trace"
   },
   "notes": [
-    "This rule uses on({x}, {h}) because binary near(x, y) is not currently allowed.",
+    "This rule uses on__{x}__{h} because binary object-object near is not currently allowed.",
     "The formula forbids the unsafe combination at every step."
   ]
 }
@@ -721,19 +863,19 @@ Good output:
   "variables": {
     "x": {
       "description": "the fragile object being thrown",
-      "domain": "objects satisfying fragile(x)"
+      "domain": "objects satisfying fragile__{x}"
     }
   },
-  "formula_template": "G(!(fragile({x}) & exec(ThrowObject({x}))))",
+  "formula_template": "G(!(fragile__{x} & exec__ThrowObject__{x}))",
   "required_predicates": [
-    "fragile({x})",
-    "exec(ThrowObject({x}))"
+    "fragile__{x}",
+    "exec__ThrowObject__{x}"
   ],
   "grounding_strategy": {
-    "x": "all object aliases that satisfy fragile(x) in the task trace"
+    "x": "all object aliases that satisfy fragile__{x} in the task trace"
   },
   "notes": [
-    "This rule is about the unsafe attempt itself, so exec(...) is appropriate."
+    "This rule is about the unsafe attempt itself, so an action-attempt atom is appropriate."
   ]
 }
 ```
@@ -764,14 +906,14 @@ Good output:
   "source_plain_english_rule": "A flammable object must never be within 20 centimeters of an active heat source.",
   "pattern_family": "Unsafe combination avoidance",
   "status": "not_expressible_with_current_trace_predicates",
-  "reason": "The current predicate vocabulary does not support object-object distance, numeric thresholds, or a binary near(x, y) relation.",
+  "reason": "The current atomic proposition vocabulary does not support object-object distance, numeric thresholds, or a binary near relation.",
   "missing_concepts": [
     "object-object distance",
     "distance threshold",
-    "near(x, y)"
+    "binary near relation"
   ],
   "notes": [
-    "This could become expressible if the grounding layer adds a controlled binary near(x, y) predicate."
+    "This could become expressible if the trace vocabulary adds a controlled binary proximity atom."
   ]
 }
 ```
@@ -780,45 +922,55 @@ Good output:
 
 ## Bad output examples
 
-### Bad: invented vague predicate
+### Bad: invented vague atom
 
 ```json
 {
-  "formula_template": "G(!dangerous({x}))"
+  "formula_template": "G(!dangerous__{x})"
 }
 ```
 
-Reason: `dangerous(x)` is not an allowed predicate.
+Reason: `dangerous__{x}` is not an allowed atom.
 
 ### Bad: final grounded formula
 
 ```json
 {
-  "formula_template": "G(toggled_on(stoveburner_1) -> F !toggled_on(stoveburner_1))"
+  "formula_template": "G(toggled_on__stoveburner_1 -> F !toggled_on__stoveburner_1)"
 }
 ```
 
 Reason: templates must use variables, not concrete object aliases.
 
-### Bad: using exec for actual state change
+### Bad: using action attempts for actual state change
 
 ```json
 {
-  "formula_template": "G(exec(ToggleObjectOn({h})) -> F exec(ToggleObjectOff({h})))"
+  "formula_template": "G(exec__ToggleObjectOn__{h} -> F exec__ToggleObjectOff__{h})"
 }
 ```
 
 Reason: this only checks attempted actions, not whether the heat source actually became active or inactive.
 
-### Bad: unsupported relation
+### Bad: unsupported binary proximity relation
 
 ```json
 {
-  "formula_template": "G(!(flammable({x}) & near({x}, {h}) & heat_source({h})))"
+  "formula_template": "G(!(flammable__{x} & near__{x}__{h} & heat_source__{h}))"
 }
 ```
 
-Reason: binary `near(x, y)` is not currently allowed.
+Reason: binary object-object proximity is not currently allowed.
+
+### Bad: non-flloat-safe atom syntax
+
+```json
+{
+  "formula_template": "G(!(flammable({x}) & on({x}, {h}) & heat_source({h})))"
+}
+```
+
+Reason: atoms must not contain parentheses, commas, colons, or spaces.
 
 ---
 

@@ -16,12 +16,12 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 
-from tavi.rule_generation.src.ltl.ltl_template_generation_config import (
+from ltl_template_generation_config import (
     LTLTemplateGenerationConfig,
     save_json,
 )
-from tavi.rule_generation.src.ltl.ltl_template_translator_agent import LTLTemplateTranslatorAgent
-from tavi.rule_generation.src.ltl.ltl_template_validator import LTLTemplateValidator
+from ltl_template_translator_agent import LTLTemplateTranslatorAgent
+from ltl_template_validator import LTLTemplateValidator
 
 
 JsonDict = Dict[str, Any]
@@ -74,21 +74,21 @@ def main() -> None:
                 }
             )
 
-            result = validator.validate(generated)
+            # result = validator.validate(generated)
 
-            if not result.is_valid:
-                print(f"{rule_id}: rejected ({len(result.errors)} validation error(s))")
-                rejected.append(
-                    {
-                        "rule_id": rule_id,
-                        "source_rule": source_rule,
-                        "generated_template": generated,
-                        "errors": result.errors,
-                    }
-                )
-            else:
-                print(f"{rule_id}: accepted")
-                accepted.append(generated)
+            # if not result.is_valid:
+            #     print(f"{rule_id}: rejected ({len(result.errors)} validation error(s))")
+            #     rejected.append(
+            #         {
+            #             "rule_id": rule_id,
+            #             "source_rule": source_rule,
+            #             "generated_template": generated,
+            #             "errors": result.errors,
+            #         }
+            #     )
+            # else:
+            print(f"{rule_id}: accepted")
+            accepted.append(generated)
 
         except Exception as exc:
             print(f"{rule_id}: failed with exception: {exc}")

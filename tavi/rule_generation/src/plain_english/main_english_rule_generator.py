@@ -7,8 +7,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from dotenv import load_dotenv
 
-from tavi.rule_generation.src.plain_english.english_rule_generator_agent import EnglishRuleGeneratorAgent
-from tavi.rule_generation.src.plain_english.generation_config import GenerationConfig
+from plain_english.english_rule_generator_agent import EnglishRuleGeneratorAgent
+from plain_english.generation_config import GenerationConfig
 
 load_dotenv()
 

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "ltl_template_rule.schema.json",
   "title": "LTL Template Rule",
-  "description": "Schema for one parametric LTL template rule generated from a plain-English embodied-agent safety rule. The template must use only the approved trace predicate vocabulary.",
+  "description": "Schema for one parametric LTL template rule generated from a plain-English embodied-agent safety rule. The template must use only the approved flloat-safe atomic proposition vocabulary.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -58,7 +58,7 @@
     },
     "status": {
       "type": "string",
-      "description": "Whether the rule can be expressed using the current allowed predicate vocabulary.",
+      "description": "Whether the rule can be expressed using the current allowed atomic proposition vocabulary.",
       "enum": [
         "expressible",
         "not_expressible_with_current_trace_predicates"
@@ -96,7 +96,7 @@
           },
           "domain": {
             "type": "string",
-            "description": "Trace-checkable grounding domain for this variable, written using allowed predicates or documented semantic categories.",
+            "description": "Trace-checkable grounding domain for this variable, written using allowed flloat-safe atoms or documented semantic categories.",
             "minLength": 1
           }
         }
@@ -105,22 +105,22 @@
         {
           "h": {
             "description": "the heat source that becomes active",
-            "domain": "objects satisfying heat_source(h) and toggleable(h)"
+            "domain": "objects satisfying heat_source__{h} and toggleable__{h}"
           }
         }
       ]
     },
     "formula_template": {
       "type": "string",
-      "description": "Parametric LTL formula using symbolic variables in braces, such as {x}. The formula must use only allowed trace predicates.",
+      "description": "Parametric LTLf formula using flloat-safe atomic proposition names and symbolic variables in braces, such as {x}. Atom names must not contain parentheses, commas, colons, or spaces.",
       "minLength": 1,
       "examples": [
-        "G((added:toggled_on({h}) & heat_source({h})) -> ((!done) U (!toggled_on({h}) & !done)))"
+        "G((added__toggled_on__{h} & heat_source__{h}) -> ((!done) U (!toggled_on__{h} & !done)))"
       ]
     },
     "required_predicates": {
       "type": "array",
-      "description": "Predicate templates required by the formula.",
+      "description": "Flloat-safe atomic proposition templates required by the formula. Use the same atom syntax as formula_template.",
       "items": {
         "type": "string",
         "minLength": 1
@@ -128,9 +128,9 @@
       "uniqueItems": true,
       "examples": [
         [
-          "added:toggled_on({h})",
-          "heat_source({h})",
-          "toggled_on({h})",
+          "added__toggled_on__{h}",
+          "heat_source__{h}",
+          "toggled_on__{h}",
           "done"
         ]
       ]
@@ -147,7 +147,7 @@
       },
       "examples": [
         {
-          "h": "all object aliases that satisfy heat_source(h) and toggleable(h) in the task trace"
+          "h": "all object aliases that satisfy heat_source__{h} and toggleable__{h} in the task trace"
         }
       ]
     },
@@ -162,12 +162,12 @@
     },
     "reason": {
       "type": "string",
-      "description": "Required when the rule is not expressible with the current predicate vocabulary.",
+      "description": "Required when the rule is not expressible with the current atomic proposition vocabulary.",
       "minLength": 1
     },
     "missing_concepts": {
       "type": "array",
-      "description": "Trace concepts or predicates that would be needed to express the rule.",
+      "description": "Trace concepts or atoms that would be needed to express the rule.",
       "items": {
         "type": "string",
         "minLength": 1
@@ -250,22 +250,57 @@
       "variables": {
         "h": {
           "description": "the heat source that becomes active",
-          "domain": "objects satisfying heat_source(h) and toggleable(h)"
+          "domain": "objects satisfying heat_source__{h} and toggleable__{h}"
         }
       },
-      "formula_template": "G((added:toggled_on({h}) & heat_source({h})) -> ((!done) U (!toggled_on({h}) & !done)))",
+      "formula_template": "G((added__toggled_on__{h} & heat_source__{h}) -> ((!done) U (!toggled_on__{h} & !done)))",
       "required_predicates": [
-        "added:toggled_on({h})",
-        "heat_source({h})",
-        "toggled_on({h})",
+        "added__toggled_on__{h}",
+        "heat_source__{h}",
+        "toggled_on__{h}",
         "done"
       ],
       "grounding_strategy": {
-        "h": "all object aliases that satisfy heat_source(h) and toggleable(h) in the task trace"
+        "h": "all object aliases that satisfy heat_source__{h} and toggleable__{h} in the task trace"
       },
       "notes": [
-        "The trigger uses added:toggled_on({h}) rather than exec(...) because exec only records attempted action.",
+        "The trigger uses added__toggled_on__{h} because the rule depends on the actual state change.",
         "The obligation must be satisfied before the virtual done boundary."
+      ]
+    },
+    {
+      "rule_id": "R02",
+      "title": "No Flammable Object on Active Heat Source",
+      "hazard_types": [
+        "Fire"
+      ],
+      "source_plain_english_rule": "A flammable object must never be on an active heat source.",
+      "pattern_family": "Unsafe combination avoidance",
+      "status": "expressible",
+      "ltl_pattern": "unsafe_combination_avoidance",
+      "variables": {
+        "x": {
+          "description": "the flammable object",
+          "domain": "objects satisfying flammable__{x}"
+        },
+        "h": {
+          "description": "the active heat source",
+          "domain": "objects satisfying heat_source__{h}"
+        }
+      },
+      "formula_template": "G(!(flammable__{x} & heat_source__{h} & toggled_on__{h} & on__{x}__{h}))",
+      "required_predicates": [
+        "flammable__{x}",
+        "heat_source__{h}",
+        "toggled_on__{h}",
+        "on__{x}__{h}"
+      ],
+      "grounding_strategy": {
+        "x": "all object aliases that satisfy flammable__{x} in the task trace",
+        "h": "all object aliases that satisfy heat_source__{h} in the task trace"
+      },
+      "notes": [
+        "The formula forbids the unsafe combination at every step."
       ]
     },
     {
@@ -277,14 +312,14 @@
       "source_plain_english_rule": "A flammable object must never be within 20 centimeters of an active heat source.",
       "pattern_family": "Unsafe combination avoidance",
       "status": "not_expressible_with_current_trace_predicates",
-      "reason": "The current predicate vocabulary does not support object-object distance or a binary near(x, y) relation.",
+      "reason": "The current atomic proposition vocabulary does not support object-object distance, numeric thresholds, or a binary proximity relation.",
       "missing_concepts": [
         "object-object distance",
-        "near(x, y)",
+        "binary proximity relation",
         "distance threshold"
       ],
       "notes": [
-        "This could become expressible if the grounding layer adds a controlled near(x, y) predicate."
+        "This could become expressible if the trace vocabulary adds a controlled binary proximity atom."
       ]
     }
   ]

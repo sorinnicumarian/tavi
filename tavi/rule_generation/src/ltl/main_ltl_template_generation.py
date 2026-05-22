@@ -16,12 +16,12 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 
-from ltl_template_generation_config import (
+from tavi.rule_generation.src.ltl.ltl_template_generation_config import (
     LTLTemplateGenerationConfig,
     save_json,
 )
-from ltl_template_translator_agent import LTLTemplateTranslatorAgent
-from ltl_template_validator import LTLTemplateValidator
+from tavi.rule_generation.src.ltl.ltl_template_translator_agent import LTLTemplateTranslatorAgent
+from tavi.rule_generation.src.ltl.ltl_template_validator import LTLTemplateValidator
 
 
 JsonDict = Dict[str, Any]

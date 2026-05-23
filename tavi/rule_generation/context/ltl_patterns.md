@@ -7,11 +7,12 @@ This file is a compact set of reusable temporal-rule patterns for offline proper
 ## Modeling note
 
 These patterns should be treated as reusable temporal sentence molds. They help turn domain knowledge such as actions, object states, and hazard types into trace properties like:
-- something bad must never happen
+
 - if a risky trigger occurs, a response must follow
 - one event must happen before another
 - a dangerous condition must be avoided while another condition holds
 - once a device becomes active, it must eventually be deactivated
+- something bad must never happen
 
 ---
 

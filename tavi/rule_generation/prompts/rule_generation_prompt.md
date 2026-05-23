@@ -88,6 +88,77 @@ This stage is **context-driven rule synthesis**, not trace mining.
 
 ---
 
+## What the later trace checker sees
+
+The generated plain-English rules will later be translated into LTL and checked over a finite runtime trace.
+
+A trace is a sequence of time steps:
+
+```text
+step 0 -> step 1 -> step 2 -> ... -> done
+```
+Each step represents the world after one agent action attempt has been processed.
+
+At each step, the checker sees a set of atomic facts that are true at that time. Example:
+
+```text
+step 0:
+  visible__mug_1
+  pickupable__mug_1
+  fragile__mug_1
+
+step 1:
+  exec__PickupObject__mug_1
+  added__holding__mug_1
+  holding__mug_1
+  fragile__mug_1
+
+step 2:
+  exec__PutObject__microwave_1
+  added__on__mug_1__microwave_1
+  on__mug_1__microwave_1
+  heat_source__microwave_1
+
+step 3:
+  added__toggled_on__microwave_1
+  toggled_on__microwave_1
+  heat_source__microwave_1
+
+step 4:
+  done
+```
+
+Important trace meanings:
+
+- state__{x} means the state is true at the current step.
+- relation__{x}__{y} means the relation is true at the current step.
+- added__state__{x} means the state became true at this step.
+- removed__state__{x} means the state stopped being true at this step.
+- added__relation__{x}__{y} means the relation became true at this step.
+- removed__relation__{x}__{y} means the relation stopped being true at this step.
+- exec__Action__{x} means the agent attempted an action at this step.
+- done is a virtual boundary marking the end of the task trace.
+
+Therefore, good temporal rules should usually describe how facts evolve across multiple steps.
+
+Prefer rules that say things like:
+
+- after some fact is added, another fact must eventually appear or disappear
+- after a risky state begins, a safety condition must hold until a resolution event occurs
+- before done, some cleanup, shutdown, release, or closure must happen
+- an action or state is allowed only after a required preparation state has occurred
+- a hazardous interval begins at one step and must be resolved at a later step
+
+Less interesting rules only forbid a bad combination inside one step.
+
+Less temporal: A flammable object must never be on an active heat source.
+
+More temporal: If a flammable object is placed on a heat source, the heat source must remain inactive until that object is removed.
+
+The second rule is preferred because it describes a risk interval over the trace.
+
+---
+
 ## What counts as a good rule
 
 A good rule should:
@@ -197,21 +268,31 @@ Follow this process internally:
    - derived semantic tags
    - hazard types
    - temporal pattern families
-3. Think of plausible unsafe **temporal chains**, such as:
-   - pick up -> carry -> place near heat
-   - fill with liquid -> pour onto electrical object
-   - activate appliance -> fail to deactivate later
-   - place flammable object on heat source -> heat source becomes active
-   - fragile object picked up -> fragile object thrown or dropped
-4. For each grounded safety idea, try to formulate a temporal version first:
-   - What event starts the risk?
-   - What must eventually happen?
-   - What must happen before `done`?
-   - What condition must remain true until the risk is resolved?
-   - What action/state must happen before another action/state is allowed?
+3. Think of plausible unsafe **temporal chains as changes across trace steps**, using:
+   - persistent state atoms such as `holding__{x}`, `open__{x}`, `toggled_on__{x}`
+   - relation atoms such as `on__{x}__{r}`
+   - delta atoms such as `added__holding__{x}`, `removed__holding__{x}`, `added__on__{x}__{r}`, `removed__on__{x}__{r}`
+   - action-attempt atoms such as `exec__ThrowObject__{x}` or `exec__DropHandObject`
+   - the final task boundary `done`
+
+   Example temporal chains:
+   - `added__holding__{x}` -> object remains safe -> `removed__holding__{x}`
+   - `added__open__{x}` -> object must later become closed -> `done`
+   - `added__on__{x}__{h}` -> heat source must remain inactive -> `removed__on__{x}__{h}`
+   - `added__toggled_on__{h}` -> heat source must later become inactive -> `done`
+   - `added__filled_with_liquid__{x}` -> container must be handled safely -> `removed__holding__{x}`
+
+4. For each grounded safety idea, formulate the best trace-level temporal version first:
+   - What atom or state change starts the risky interval?
+   - What atom resolves the risky interval?
+   - What condition must remain true until the interval is resolved?
+   - What response must eventually happen?
+   - What response must happen before `done`?
+   - What action/state must be forbidden while the risky interval is active?
+   - What preparation must happen before a later action/state is allowed?
 
    Keep the temporal version when it is faithful and trace-checkable.
-   Use an invariant version only when the safety idea is truly instantaneous.
+   Use an invariant version only when the safety idea is truly instantaneous and has no meaningful trace-level trigger, response, resolution, ordering, or before-done obligation.
    
 5. Remove rules that are:
    - redundant
@@ -403,6 +484,8 @@ Do not use vague concepts unless they are also grounded in the context files.
 Before finalizing any rule, check all of the following:
 
 - Is the rule clearly temporal?
+- Does the rule describe a relationship across multiple trace steps, rather than only a forbidden snapshot?
+- Does the rule have a clear trigger, response, resolution, ordering constraint, or before-done obligation?
 - Is it grounded in the given context?
 - Can it plausibly be monitored over action/state traces?
 - Is it non-trivial?
@@ -411,6 +494,20 @@ Before finalizing any rule, check all of the following:
 - Would a later LTL-template translator have a reasonable chance of formalizing it?
 
 If any answer is "no", discard or rewrite the rule.
+
+When deciding between two faithful versions of the same safety idea, prefer the one that better exposes trace-level temporal structure.
+
+Prefer:
+If an unsafe object is placed on a heat source, the heat source must remain inactive until that object is removed.
+over: An unsafe object must never be on an active heat source.
+
+Prefer:
+If the agent picks up a fragile object, it must remain unbroken until it is no longer held.
+over: The agent must never break a fragile object.
+
+Prefer:
+If a heat-producing object becomes active, it must become inactive before the task ends.
+over: A heat-producing object must not remain active.
 
 ---
 

@@ -63,7 +63,17 @@ For rule generation, object states should be understood as symbolic conditions t
 ### parentReceptacles
 - Meaning: the object is currently inside or on another receptacle.
 - Safety relevance: this is one of the most useful relations for temporal rules because containment often determines whether a later activation becomes dangerous.
-- Useful trace predicates / phrases: inside, in, on, placed in, placed on, contained by, on, inside, in (the last three refer to the second argument of the state. If multiple objects, they are separated by the "|" symbol).
+- Useful trace predicates / phrases: 
+Use only the trace relation `on(x, y)` / `on__{x}__{y}` for rules.
+
+This relation may semantically mean "inside", "on top of", "contained by", or "supported by", but the generated rule must not invent separate predicates such as `inside`, `contains`, or `in`.
+
+Bad:
+inside__{x}__{r}
+contains__{r}__{x}
+
+Good:
+on__{x}__{r}
 
 ---
 
@@ -212,6 +222,28 @@ These tags are useful abstractions for rule generation. They may be inferred fro
 - Meaning: the object should be treated as capable of burning or as unsafe near heat sources.
 - Safety relevance: useful for heat-related hazard rules even when flammability is not directly represented as a native simulator state.
 - trace predicates: flammable
+
+Do not invent object-type predicates such as:
+
+```text
+is_sink__{x}
+is_floor__{x}
+is_microwave__{x}
+is_countertop__{x}
+```
+
+unless they are explicitly implemented in the trace processor.
+
+For first-stage rules, prefer existing trace-checkable predicates such as:
+
+```text
+receptacle__{x}
+heat_source__{x}
+cold_source__{x}
+electrical__{x}
+fillable__{x}
+on__{x}__{y}
+```
 
 ---
 

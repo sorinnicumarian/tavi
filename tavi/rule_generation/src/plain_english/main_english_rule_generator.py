@@ -7,8 +7,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from dotenv import load_dotenv
 
-from plain_english.english_rule_generator_agent import EnglishRuleGeneratorAgent
-from plain_english.generation_config import GenerationConfig
+from english_rule_generator_agent import EnglishRuleGeneratorAgent
+from generation_config import GenerationConfig
 
 load_dotenv()
 
@@ -51,7 +51,7 @@ def save_outputs(output_dir: Path, pipeline_result, debug_output: bool = False) 
     return run_dir
 
 if __name__ == "__main__":
-    agent = EnglishRuleGeneratorAgent()
+    agent = EnglishRuleGeneratorAgent(temperature=0.4)
     
     config = GenerationConfig()
     file_contents = config.read_required_files(Path("./context"), Path("./prompts"))

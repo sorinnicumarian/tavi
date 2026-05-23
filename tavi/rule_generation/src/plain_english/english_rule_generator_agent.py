@@ -81,6 +81,11 @@ class EnglishRuleGeneratorAgent:
         2. Identify weak grounding, vague predicates, redundancy, poor hazard mapping,
         missing temporality, or poor trace-checkability.
         3. Produce a structured critique.
+        4. Identify missing temporal-rule opportunities.
+        5. When a rule is redundant, invariant-heavy, or weakly temporal, propose a 
+        concrete replacement rule if a faithful trace-checkable temporal version exists.
+        6. Do not only criticize. Actively suggest stronger non-redundant temporal 
+        alternatives grounded in the original context.
 
         Scoring rubric for each rule (1 to 5):
         - groundedness
@@ -125,6 +130,35 @@ class EnglishRuleGeneratorAgent:
         ],
         "recommended_revision_strategy": [
             "..."
+        ],
+        "missing_temporal_opportunities": [
+            {{
+                "problem": "The current rules contain an invariant about electrical objects on active heat sources, but the stronger temporal version is to keep the heat source inactive until the object is removed.",
+                "replacement_rule": 
+                {{
+                    "title": "Keep Heat Source Inactive Until Unsafe Object Removed",
+                    "hazard_types": ["Fire", "Appliance Misuse"],
+                    "pattern_family": "Safety interval until resolution",
+                    "plain_english_rule": "If an electrical or flammable object is placed on a heat source, the heat source must remain inactive until that object is removed.",
+                    "why_it_matters": "This captures the temporal risk window between unsafe placement and removal.",
+                    "key_trace_concepts": [
+                        "electrical__{{x}}",
+                        "flammable__{{x}}",
+                        "heat_source__{{h}}",
+                        "added__on__{{x}}__{{h}}",
+                        "removed__on__{{x}}__{{h}}",
+                        "toggled_on__{{h}}"
+                    ]
+                }},
+                "replacement_candidate": {{
+                    "title": "...",
+                    "hazard_types": ["..."],
+                    "pattern_family": "...",
+                    "plain_english_rule": "...",
+                    "why_it_matters": "...",
+                    "key_trace_concepts": ["..."]
+                }}
+            }}
         ]
         }}
 
@@ -156,23 +190,52 @@ class EnglishRuleGeneratorAgent:
             - Do NOT assume previous rules are correct.
             - Produce a NEW FULL RULE SET FROM SCRATCH.
             - You may keep strong rules, rewrite weak rules, and drop bad ones.
-            - Prefer a smaller, stronger, cleaner set over a larger noisy set.
-            - Remove redundancy.
+            - Prefer a clean, non-redundant set over a noisy set.
+            - Do not shrink the rule set unnecessarily.
+            - If a rule is dropped because it is redundant, weakly temporal, or too 
+            invariant-like, replace it with a stronger temporal rule when a faithful 
+            trace-checkable alternative exists.
+            - Preserve diverse temporal pattern families when they are grounded and useful.
+            - Remove true redundancy, but keep distinct rules that cover different hazards,
+            triggers, responses, or safety intervals.
             - Avoid vague predicates unless they are explicitly grounded in the context.
             - Keep the rules interpretable and suitable for later LTL translation.
+            
+            Your revision is not only a filtering step.
+
+            You must produce a stronger full rule set by:
+            1. keeping good rules,
+            2. rewriting weak rules,
+            3. dropping truly bad or redundant rules,
+            4. adding new non-redundant temporal rules suggested by the evaluation,
+            5. adding your own new temporal rules if they are clearly supported by the original context.
+            
+            The final set should normally contain around 14 to 18 strong rules.
+            Do not force this number if quality would suffer, but avoid collapsing the set to only a few rules.
+            
+            When two rules express the same safety concern, prefer the more temporal rule.
+
+            Example:
+            - Weaker: "An electrical object must never be on an active heat source."
+            - Stronger: "If an electrical object is placed on a heat source, the heat source must remain inactive until the object is removed."
+
+            Keep the weaker invariant only if it captures a distinct safety concern not covered by the temporal rule.
 
             Return ONLY valid JSON.
             Use the same output structure as the original generator:
             [
-            {{
-                "Rule R01: Short descriptive title": {{
-                "Hazard types": ["..."],
-                "Pattern family": "...",
-                "Plain-English rule": "...",
-                "Why it matters": "...",
-                "Key trace concepts": ["..."]
+                {{
+                    "rule_id": "R01",
+                    "title": "Short descriptive title",
+                    "hazard_types": ["Fire"],
+                    "pattern_family": "Safety interval until resolution",
+                    "plain_english_rule": "If ...",
+                    "why_it_matters": "...",
+                    "key_trace_concepts": [
+                    "added__holding__{{x}}",
+                    "removed__holding__{{x}}"
+                    ]
                 }}
-            }}
             ]
 
             ORIGINAL CONTEXT + INSTRUCTIONS:

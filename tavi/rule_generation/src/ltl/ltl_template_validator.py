@@ -128,7 +128,7 @@ FORBIDDEN_SUBSTRINGS: Sequence[str] = (
     "incompatible(",
     "inside(",
     "contains(",
-    "near({",  # binary near often starts like near({x}, {y}); checked more precisely below
+    # "near({",  # binary near often starts like near({x}, {y}); checked more precisely below
 )
 
 

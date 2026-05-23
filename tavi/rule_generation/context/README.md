@@ -20,18 +20,5 @@ This file defines the hazard taxonomy used for rule generation.
 
 This file contains a small library of reusable temporal-rule patterns that are useful for embodied-agent safety rules.
 
-#### `rule_generation_prompt.md`
-
-This file contains the actual prompt template used in the offline LLM rule-generation step.
-
-It tells the model:
-- what its job is,
-- which files it must use,
-- what a good rule looks like,
-- what kinds of rules to avoid,
-- which temporal pattern families to prefer,
-- how many rules to generate,
-- and how to format the output.
-
 ## Note
-The markdown files are generated using OpenAI's ChatGPT 5.4 with extened thinking enabled, and manually modified to better fit the current context of the project.
+The markdown files are generated using OpenAI's ChatGPT 5.4-5.5 with extened thinking enabled, and manually modified to better fit the current context of the project.

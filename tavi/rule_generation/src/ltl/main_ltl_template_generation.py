@@ -40,7 +40,7 @@ def main() -> None:
 
     agent = LTLTemplateTranslatorAgent(
         model="gemini-2.5-pro",
-        temperature=0.1,
+        temperature=0.3,
         max_output_tokens=8192,
         thinking_budget=1024,
     )

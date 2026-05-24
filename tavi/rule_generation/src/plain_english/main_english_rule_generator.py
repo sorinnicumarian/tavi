@@ -62,7 +62,7 @@ if __name__ == "__main__":
     
     final_rules = pipeline_result["final_rules"]
 
-    run_dir = save_outputs(Path("./outputs"), pipeline_result)
+    run_dir = save_outputs(Path("./outputs"), pipeline_result, debug_output=True)
         
     print("[OK] Rule generation finished.")
     print(f"Saved files to: {run_dir}")

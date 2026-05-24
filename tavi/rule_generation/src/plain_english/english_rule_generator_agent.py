@@ -86,13 +86,53 @@ class EnglishRuleGeneratorAgent:
         concrete replacement rule if a faithful trace-checkable temporal version exists.
         6. Do not only criticize. Actively suggest stronger non-redundant temporal 
         alternatives grounded in the original context.
+        
+        Snapshot-style rules include:
+        - Global avoidance / invariant
+        - Unsafe combination avoidance
+        - No action while hazardous condition holds
+        - formulas whose safety meaning is checked entirely within one trace step
 
+        These rules are allowed as secondary guardrails, but they are not the main target of this project.
+
+        When a snapshot-style rule is generated, first try to replace it with a trace-temporal version using:
+        - a trigger atom such as added__...
+        - a resolution atom such as removed__...
+        - a before-done obligation
+        - an until-safe interval
+
+        Only keep the snapshot-style version if no faithful trace-temporal version exists.
+        
+        Do not treat unsafe_combination_avoidance as a temporal pattern merely because it uses G.
+
+        A rule is genuinely temporal only if its meaning depends on relationships across multiple trace steps, such as:
+        - trigger -> eventual response
+        - trigger -> response before done
+        - trigger -> safety condition until resolution
+        - ordering / precedence over time
+        - immediate next-step response
+
+        A strong rule is not merely temporal in a generic sense. It should help explain where the safety problem started in the trace.
+
+        For each rule, check whether it clearly identifies:
+        1. the trigger step where the risky chain begins;
+        2. the active interval during which the obligation or hazard remains open;
+        3. the resolution/recovery event that safely closes the interval;
+        4. the violation condition;
+        5. the trace evidence that would let a reporter explain the failure.
+
+        Penalize rules that are only static invariants unless the hazard is genuinely instantaneous.
+        
         Scoring rubric for each rule (1 to 5):
         - groundedness
         - temporal_quality
         - trace_checkability
         - non_redundancy
         - ltl_translatability
+        - diagnostic_trigger_clarity
+        - active_interval_clarity
+        - resolution_or_recovery_clarity
+        - violation_localization_value
 
         Decision must be one of:
         - keep
@@ -210,7 +250,14 @@ class EnglishRuleGeneratorAgent:
             4. adding new non-redundant temporal rules suggested by the evaluation,
             5. adding your own new temporal rules if they are clearly supported by the original context.
             
-            The final set should normally contain around 14 to 18 strong rules.
+            Every revised rule should include a temporal_diagnostic_structure object.
+            When rewriting a weak rule, prefer this shape:
+            trigger -> monitored interval -> required resolution or forbidden event -> violation condition
+            Do not output rules whose diagnostic structure is empty, vague, or only repeats the plain-English rule.
+            
+            The final set should normally contain around 20 to 25 strong diagnostic temporal rules.
+            A rule counts as strong only if it has a clear trigger, interval/resolution, and violation-localization value, 
+            unless it is explicitly justified as an instantaneous invariant.
             Do not force this number if quality would suffer, but avoid collapsing the set to only a few rules.
             
             When two rules express the same safety concern, prefer the more temporal rule.

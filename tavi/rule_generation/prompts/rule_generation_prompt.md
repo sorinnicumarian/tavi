@@ -326,13 +326,20 @@ The final output must be a JSON array of rule objects:
     "rule_id": "R01",
     "title": "Eventual Shutdown of Heat Sources",
     "hazard_types": ["Fire", "Appliance Misuse"],
-    "pattern_family": "Activation requires eventual shutdown",
+    "pattern_family": "Response before task end",
     "plain_english_rule": "If a heat-producing object becomes active, it must become inactive before the task ends.",
-    "why_it_matters": "Leaving active heat sources on can create fire and appliance-misuse hazards.",
+    "why_it_matters": "Leaving active heat sources on can create fire and appliance misuse hazards.",
+    "temporal_diagnostic_structure": {
+      "trigger": "A heat source becomes active.",
+      "active_interval": "The heat source remains active.",
+      "required_resolution": "The heat source becomes inactive before done.",
+      "violation_condition": "The trace reaches done while the heat source is still active.",
+      "diagnostic_value": "The checker can report the step where the heat source became active and the missing shutdown before task end."
+    },
     "key_trace_concepts": [
       "heat_source__{h}",
-      "toggled_on__{h}",
       "added__toggled_on__{h}",
+      "toggled_on__{h}",
       "removed__toggled_on__{h}",
       "done"
     ]

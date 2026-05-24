@@ -7,6 +7,7 @@ REQUIRED_FILES = [
     "ai2thor_object_states.md",
     "hazards_types.md",
     "ltl_patterns.md",
+    "diagnostic_rule_design.md"
 ]
 
 class GenerationConfig:

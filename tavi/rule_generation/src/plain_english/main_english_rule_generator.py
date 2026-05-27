@@ -12,12 +12,12 @@ from generation_config import GenerationConfig
 
 load_dotenv()
 
-def save_outputs(output_dir: Path, pipeline_result) -> Path:
+def save_outputs(output_dir: Path, pipeline_result, debug_output: bool = False) -> Path:
     """Save all artifacts from the generator/evaluator/reviser pipeline."""
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = output_dir / f"run_{timestamp}"
+    run_dir = output_dir / f"english_rules_{timestamp}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
     def write_json(name: str, data) -> None:
@@ -27,33 +27,38 @@ def save_outputs(output_dir: Path, pipeline_result) -> Path:
         )
 
     # Save initial rules
-    if "initial_rules" in pipeline_result:
+    if "initial_rules" in pipeline_result and debug_output:
         write_json("rules_v1_initial.json", pipeline_result["initial_rules"])
+
+    # Save diagnostic expansion candidates
+    if "initial_expansion" in pipeline_result:
+        write_json("rule_expansion_candidates.json", pipeline_result["initial_expansion"])
 
     # Save each round
     for round_info in pipeline_result.get("rounds", []):
         round_idx = round_info["round"]
 
-        if "evaluation" in round_info:
+        if "evaluation" in round_info and debug_output:
             write_json(f"evaluation_v{round_idx}.json", round_info["evaluation"])
 
-        if "revised_rules" in round_info:
+        if "revised_rules" in round_info and debug_output:
             write_json(f"rules_v{round_idx + 1}.json", round_info["revised_rules"])
 
     # Save final rules
     if "final_rules" in pipeline_result:
-        write_json("rules_final.json", pipeline_result["final_rules"])
+        write_json("plain_english_rules.json", pipeline_result["final_rules"])
 
     # Save the whole pipeline result too
-    write_json("pipeline_result.json", pipeline_result)
+    if debug_output:
+        write_json("pipeline_result.json", pipeline_result)
 
     return run_dir
 
 if __name__ == "__main__":
-    agent = EnglishRuleGeneratorAgent()
+    agent = EnglishRuleGeneratorAgent(temperature=0.4)
     
     config = GenerationConfig()
-    file_contents = config.read_required_files(Path("../context"))
+    file_contents = config.read_required_files(Path("./context"), Path("./prompts"))
     final_prompt = config.build_final_prompt(file_contents)
     
     pipeline_result = agent.run_feedback_loop(final_prompt)
@@ -61,7 +66,7 @@ if __name__ == "__main__":
     
     final_rules = pipeline_result["final_rules"]
 
-    run_dir = save_outputs(Path("../outputs"), pipeline_result)
+    run_dir = save_outputs(Path("./outputs"), pipeline_result, debug_output=True)
         
     print("[OK] Rule generation finished.")
     print(f"Saved files to: {run_dir}")

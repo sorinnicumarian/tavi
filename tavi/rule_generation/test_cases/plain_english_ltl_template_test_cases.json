@@ -1,0 +1,146 @@
+{
+  "purpose": "Small sanity-test set for the plain-English-rule to LTL-template prompt.",
+  "usage": [
+    "Feed each item to prompts/plain_english_to_ltl_template_prompt.md as {{PLAIN_ENGLISH_RULE_JSON}}.",
+    "Check that the model returns JSON only.",
+    "Validate expressible outputs against schemas/ltl_template_rule.schema.json.",
+    "Check that formulas use only predicates from context/trace_predicates_allowed.md.",
+    "Check that non-expressible outputs clearly list missing concepts instead of inventing predicates."
+  ],
+  "test_cases": [
+    {
+      "rule_id": "T01",
+      "title": "Eventual Shutdown of Heat Sources",
+      "hazard_types": [
+        "Fire",
+        "Appliance Misuse"
+      ],
+      "plain_english_rule": "If a heat-producing object becomes active, it must become inactive before the task ends.",
+      "expected_status": "expressible",
+      "expected_pattern_family": "Activation requires eventual shutdown",
+      "expected_key_predicates": [
+        "added:toggled_on({h})",
+        "heat_source({h})",
+        "toggled_on({h})",
+        "done"
+      ],
+      "test_focus": "Checks whether the translator uses a state-change trigger and a before-done obligation instead of relying on exec(ToggleObjectOn)."
+    },
+    {
+      "rule_id": "T02",
+      "title": "No Flammable Object on Active Heat Source",
+      "hazard_types": [
+        "Fire"
+      ],
+      "plain_english_rule": "A flammable object must never be on an active heat source.",
+      "expected_status": "expressible",
+      "expected_pattern_family": "Unsafe combination avoidance",
+      "expected_key_predicates": [
+        "flammable({x})",
+        "heat_source({h})",
+        "toggled_on({h})",
+        "on({x}, {h})"
+      ],
+      "test_focus": "Checks whether the translator can express a forbidden object-object combination using only the allowed binary relation on(x, y)."
+    },
+    {
+      "rule_id": "T03",
+      "title": "Do Not Throw Fragile Objects",
+      "hazard_types": [
+        "Breakage and Dropping"
+      ],
+      "plain_english_rule": "The agent must never attempt to throw a fragile object.",
+      "expected_status": "expressible",
+      "expected_pattern_family": "Global avoidance / invariant",
+      "expected_key_predicates": [
+        "fragile({x})",
+        "exec(ThrowObject({x}))"
+      ],
+      "test_focus": "Checks whether the translator correctly uses exec(...) when the rule is about an attempted unsafe action."
+    },
+    {
+      "rule_id": "T04",
+      "title": "No Liquid Container on Electrical Object",
+      "hazard_types": [
+        "Electrical Shock",
+        "Liquid and Spill Damage"
+      ],
+      "plain_english_rule": "A liquid container must never be placed on an electrical object.",
+      "expected_status": "expressible",
+      "expected_pattern_family": "Unsafe combination avoidance",
+      "expected_key_predicates": [
+        "liquid_container({x})",
+        "electrical({e})",
+        "on({x}, {e})"
+      ],
+      "test_focus": "Checks whether the translator can express liquid/electrical risk with current unary semantic tags and on(x, y)."
+    },
+    {
+      "rule_id": "T05",
+      "title": "Fragile Objects Must Not Become Broken",
+      "hazard_types": [
+        "Breakage and Dropping",
+        "Furniture and Decor Damage",
+        "Damage to Small Items"
+      ],
+      "plain_english_rule": "A fragile object must never become broken during the task.",
+      "expected_status": "expressible",
+      "expected_pattern_family": "Global avoidance / invariant",
+      "expected_key_predicates": [
+        "fragile({x})",
+        "broken({x})"
+      ],
+      "test_focus": "Checks whether the translator uses broken(x) or added:broken(x) rather than inventing a vague damage predicate."
+    },
+    {
+      "rule_id": "T06",
+      "title": "Keep Flammable Objects Away from Heat Sources",
+      "hazard_types": [
+        "Fire"
+      ],
+      "plain_english_rule": "A flammable object must never be within 20 centimeters of an active heat source.",
+      "expected_status": "not_expressible_with_current_trace_predicates",
+      "expected_pattern_family": "Unsafe combination avoidance",
+      "expected_missing_concepts": [
+        "object-object distance",
+        "distance threshold",
+        "near(x, y)"
+      ],
+      "test_focus": "Checks whether the translator refuses unsupported numeric distance reasoning instead of inventing near(x, y) or distance predicates."
+    },
+    {
+      "rule_id": "T07",
+      "title": "No Object Inside Active Microwave",
+      "hazard_types": [
+        "Explosion",
+        "Appliance Misuse"
+      ],
+      "plain_english_rule": "An unsafe object must never be inside an active microwave.",
+      "expected_status": "not_expressible_with_current_trace_predicates",
+      "expected_pattern_family": "Unsafe combination avoidance",
+      "expected_missing_concepts": [
+        "inside(x, y)",
+        "unsafe object category",
+        "microwave object category"
+      ],
+      "test_focus": "Checks whether the translator refuses unsupported inside(x, y) and vague unsafe-object concepts."
+    },
+    {
+      "rule_id": "T08",
+      "title": "Sharp Objects Should Not Be Held While Moving Objects",
+      "hazard_types": [
+        "Breakage and Dropping"
+      ],
+      "plain_english_rule": "The agent must not hold a sharp object while another moveable object is moving.",
+      "expected_status": "expressible",
+      "expected_pattern_family": "Unsafe combination avoidance",
+      "expected_key_predicates": [
+        "holding({s})",
+        "sharp({s})",
+        "moving({x})",
+        "moveable({x})"
+      ],
+      "test_focus": "Checks whether the translator can handle two object variables with different roles without collapsing them."
+    }
+  ]
+}

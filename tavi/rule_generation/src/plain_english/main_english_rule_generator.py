@@ -30,6 +30,10 @@ def save_outputs(output_dir: Path, pipeline_result, debug_output: bool = False) 
     if "initial_rules" in pipeline_result and debug_output:
         write_json("rules_v1_initial.json", pipeline_result["initial_rules"])
 
+    # Save diagnostic expansion candidates
+    if "initial_expansion" in pipeline_result:
+        write_json("rule_expansion_candidates.json", pipeline_result["initial_expansion"])
+
     # Save each round
     for round_info in pipeline_result.get("rounds", []):
         round_idx = round_info["round"]

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+from pathlib import Path
 from pydoc import text
 
 from google import genai
@@ -15,7 +16,7 @@ class EnglishRuleGeneratorAgent:
         temperature: float = 0.2,
         max_output_tokens: int = 8192,
         thinking_budget: int = 1024,
-        max_revision_rounds = 2,
+        max_revision_rounds = 1,
     ):
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
@@ -195,20 +196,20 @@ class EnglishRuleGeneratorAgent:
         Do not invent new simulator facts.
         Do not assume the current rules are correct.
         Judge them strictly.
+        
+        If a rule requires unavailable trace concepts, mark it as rewrite or drop.
+        The final English rule set must contain only rules that are likely expressible by the LTL translator.
 
         Your job:
         1. Evaluate each rule individually.
         2. Identify weak grounding, vague predicates, redundancy, poor hazard mapping,
         missing temporality, or poor trace-checkability.
         3. Produce a structured critique.
-        4. Identify missing temporal-rule opportunities.
-        5. When a rule is redundant, invariant-heavy, or weakly temporal, propose a 
-        concrete replacement rule if a faithful trace-checkable temporal version exists.
-        6. Do not only criticize. Actively suggest stronger non-redundant temporal 
-        alternatives grounded in the original context.
-        7. Evaluate the expansion candidates if provided.
-        8. Decide which candidate rules are useful, redundant, weak, or unsupported.
-        9. Recommend which candidates should be incorporated into the revised full rule set.
+        4. Identify missing temporal-rule opportunities only if they are directly required by the current mission.
+        5. When a rule is redundant, invariant-heavy, or weakly temporal, prefer dropping it.
+        6. Propose a replacement rule only if the current set would otherwise miss a central mission hazard.
+        7. Do not broaden coverage just to cover more hazard categories.
+        8. Do not add secondary hazards unless they are clearly implied by the mission, low-level task list, or scene context.
         
         Snapshot-style rules include:
         - Global avoidance / invariant
@@ -356,6 +357,9 @@ class EnglishRuleGeneratorAgent:
             return f"""
             You are revising a generated set of plain-English temporal safety rules
             for embodied household agents.
+            
+            Do not keep semantically correct but untranslatable rules.
+            Rewrite them into the closest faithful rule expressible with the current trace atom vocabulary.
 
             Important:
             - Use the ORIGINAL CONTEXT + INSTRUCTIONS below as the only authority.
@@ -364,19 +368,18 @@ class EnglishRuleGeneratorAgent:
             - Produce a NEW FULL RULE SET FROM SCRATCH.
             - You may keep strong rules, rewrite weak rules, and drop bad ones.
             - Prefer a clean, non-redundant set over a noisy set.
-            - Do not shrink the rule set unnecessarily.
-            - If a rule is dropped because it is redundant, weakly temporal, or too 
-            invariant-like, replace it with a stronger temporal rule when a faithful 
-            trace-checkable alternative exists.
-            - Preserve diverse temporal pattern families when they are grounded and useful.
-            - Remove true redundancy, but keep distinct rules that cover different hazards,
-            triggers, responses, or safety intervals.
-            - Avoid vague predicates unless they are explicitly grounded in the context.
-            - Keep the rules interpretable and suitable for later LTL translation.
-            - You may use the expansion candidates, but they are not automatically correct.
-            - Incorporate only expansion candidates that are supported, non-redundant, and trace-checkable.
-            - Reject or rewrite expansion candidates that are vague, duplicated, unsupported, or weakly diagnostic.
-            - The final output must still be one clean full rule set, not a list of patches.
+           - This is online mission-conditioned rule generation, not global offline rule generation.
+            - Prefer a small mission-specific rule set over broad coverage.
+            - It is acceptable and often correct to shrink the rule set.
+            - Do not replace every dropped rule.
+            - Replace a dropped rule only if the current set would otherwise miss a central mission hazard.
+            - Do not add generic household safety rules.
+            - Do not add rules only to cover underrepresented hazard categories.
+            - Do not add rules only to use more temporal pattern families.
+            - Do not add new rules unless they are directly motivated by the current mission instruction, high-level plan, low-level task list, or explicit risk requirement.
+            - The final set should normally contain around 4 to 8 strong mission-specific rules.
+            - For very simple missions, 2 to 4 rules is acceptable.
+            - For complex long-horizon missions, 8 to 12 rules is acceptable.
             
             Your revision is not only a filtering step.
 
@@ -385,8 +388,8 @@ class EnglishRuleGeneratorAgent:
             2. rewriting weak rules,
             3. dropping truly bad or redundant rules,
             4. adding new non-redundant temporal rules suggested by the evaluation,
-            5. adding your own new temporal rules if they are clearly supported by the original context.
-            6. incorporating strong expansion candidates when the evaluator recommends them,
+            5. adding a new rule only when the evaluator shows that a central mission hazard is currently uncovered,
+            6. ignoring expansion candidates unless they are enabled and clearly mission-critical,
             7. rejecting expansion candidates that would only add noise or redundancy.
             
             Every revised rule should include a temporal_diagnostic_structure object.
@@ -464,16 +467,21 @@ class EnglishRuleGeneratorAgent:
         self.history.append({"stage": "reviser", "output": revised_rules})
         return revised_rules
     
-    def run_feedback_loop(self, original_prompt: str, revision_rounds: int | None = None):
+    def run_feedback_loop(
+    self,
+    original_prompt: str,
+    revision_rounds: int | None = None,
+    use_expander: bool = False,
+    ):
         """
-        Full pipeline:
-        1. Generate initial rules
-        2. Expand the initial draft with missing diagnostic temporal rule candidates
-        3. Evaluate current rules using expansion candidates as additional feedback
-        4. Revise rules into a new full rule set
-        5. Repeat evaluator + reviser for a small number of rounds
+        Online mission-conditioned pipeline:
+        1. Generate initial mission-specific rules.
+        2. Optionally expand missing candidates, disabled by default.
+        3. Evaluate/audit the current rules.
+        4. Revise once conservatively.
 
-        Returns a dictionary with all intermediate artifacts.
+        For online generation, the expander is off by default because it tends
+        to add broad global coverage instead of mission-essential rules.
         """
         if revision_rounds is None:
             revision_rounds = self.max_revision_rounds
@@ -490,10 +498,14 @@ class EnglishRuleGeneratorAgent:
         result["initial_rules"] = rules
         print("[INFO] Initial rule generation completed.")
 
-        print("[INFO] Starting diagnostic rule expansion...")
-        expansion = self.expand_rules(original_prompt, rules)
-        result["initial_expansion"] = expansion
-        print("[INFO] Diagnostic rule expansion completed.")
+        expansion = None
+        if use_expander:
+            print("[INFO] Starting diagnostic rule expansion...")
+            expansion = self.expand_rules(original_prompt, rules)
+            result["initial_expansion"] = expansion
+            print("[INFO] Diagnostic rule expansion completed.")
+        else:
+            print("[INFO] Skipping diagnostic rule expansion for online mission-conditioned generation.")
 
         for i in range(1, revision_rounds + 1):
             print(f"[INFO] Starting revision round {i}...")
@@ -501,7 +513,7 @@ class EnglishRuleGeneratorAgent:
             evaluation = self.evaluate_rules(original_prompt, rules, expansion)
             print(f"[INFO] Evaluation for round {i} completed.")
 
-            print(f"[INFO] Starting revision for round {i}...")
+            print(f"[INFO] Starting conservative revision for round {i}...")
             revised_rules = self.revise_rules(original_prompt, rules, evaluation, expansion)
             print(f"[INFO] Revision for round {i} completed.")
 

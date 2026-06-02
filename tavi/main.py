@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # one controller for all tasks — window opens once, scene is reset between tasks
     controller = Controller()
 
-    MAX_TASKS = 10
+    MAX_TASKS = 1
 
     with jsonlines.open(INPUT_FILE) as reader:
         for idx, task in enumerate(reader):
@@ -77,6 +77,8 @@ if __name__ == "__main__":
                     task=instruction,
                     trace_collector=trace_collector,
                     controller=controller,
+                    task_id=idx,
+                    task_record=task,
                 )
                 status = "completed"
                 print(f"Finished task {idx} with SR={sr_step}")

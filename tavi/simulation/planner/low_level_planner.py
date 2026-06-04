@@ -178,11 +178,15 @@ class LowLevelPlanner():
         else:
             error_message = self.env.last_event.metadata['errorMessage']
 
+        # Surface the objectId so the trace collector can build exec__Action__obj_sid atoms
+        last_obj_id = self.env.last_event.metadata.get("lastActionObjectId") or None
+
         ret_dict = {
             'action': instruction,
             'success': len(ret) <= 0,
             'message': ret,
-            'errorMessage': error_message
+            'errorMessage': error_message,
+            'objectId': last_obj_id,
         }
 
         return ret_dict

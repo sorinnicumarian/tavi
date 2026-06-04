@@ -222,8 +222,10 @@ def execute_low_level_plan(
 
             if trace_collector is not None:
 
+                obj_id = ret_dict.get("objectId")
                 trace_collector.capture_step(
                     action_name=plan,
+                    action_args={"objectId": obj_id} if obj_id else {},
                     pre_metadata=pre_metadata,
                     post_metadata=post_metadata,
                     success=ret_dict["success"],

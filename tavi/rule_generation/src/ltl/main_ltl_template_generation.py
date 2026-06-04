@@ -3,12 +3,6 @@ Runner and callable API for the LTL-template generation stage.
 
 This module translates mission-specific plain-English safety rules into
 parametric LTL-template JSON objects.
-
-Online usage:
-    generate_ltl_templates_for_rules(
-        plain_english_rules_path=.../plain_english_rules.json,
-        output_dir=.../ltl_templates,
-    )
 """
 
 from __future__ import annotations
@@ -21,21 +15,11 @@ from typing import Any, Dict, List
 
 from dotenv import load_dotenv
 
-try:
-    from .ltl_template_generation_config import (
-        LTLTemplateGenerationConfig,
-        save_json,
-    )
-    from .ltl_template_translator_agent import LTLTemplateTranslatorAgent
-    from .ltl_template_validator import LTLTemplateValidator
-except ImportError:
-    # Allows running this file directly from tavi/rule_generation.
-    from ltl_template_generation_config import (
-        LTLTemplateGenerationConfig,
-        save_json,
-    )
-    from ltl_template_translator_agent import LTLTemplateTranslatorAgent
-    from ltl_template_validator import LTLTemplateValidator
+from .ltl_template_generation_config import (
+    LTLTemplateGenerationConfig,
+    save_json,
+)
+from .ltl_template_translator_agent import LTLTemplateTranslatorAgent
 
 
 JsonDict = Dict[str, Any]
@@ -61,7 +45,6 @@ def generate_ltl_templates_for_rules(
     temperature: float = 0.2,
     max_output_tokens: int = 8192,
     thinking_budget: int = 1024,
-    validate_outputs: bool = False,
 ) -> Path:
     """
     Translate one task's generated plain-English rules into LTL templates.
@@ -74,10 +57,6 @@ def generate_ltl_templates_for_rules(
 
     output_dir:
         Directory where LTL outputs should be saved.
-
-    validate_outputs:
-        Keep False for now. The current validator still needs cleanup around
-        flloat-safe double-underscore atoms.
     """
     root = _rule_generation_root()
 
@@ -104,11 +83,7 @@ def generate_ltl_templates_for_rules(
         thinking_budget=thinking_budget,
     )
 
-    validator = LTLTemplateValidator(config.schema_path)
-
     accepted: List[JsonDict] = []
-    rejected: List[JsonDict] = []
-    raw_outputs: List[JsonDict] = []
 
     print(f"Loaded {len(rendered_prompts)} plain-English rule(s).")
     print("Starting LTL-template generation...")
@@ -124,124 +99,15 @@ def generate_ltl_templates_for_rules(
 
         try:
             generated = agent.translate_rule(prompt)
-
-            raw_outputs.append(
-                {
-                    "rule_id": rule_id,
-                    "source_rule": source_rule,
-                    "parsed_response": generated,
-                }
-            )
-
-            if validate_outputs:
-                result = validator.validate(generated)
-
-                if not result.is_valid:
-                    print(f"{rule_id}: rejected ({len(result.errors)} validation error(s))")
-                    rejected.append(
-                        {
-                            "rule_id": rule_id,
-                            "source_rule": source_rule,
-                            "generated_template": generated,
-                            "errors": result.errors,
-                        }
-                    )
-                    continue
-
             print(f"{rule_id}: accepted")
             accepted.append(generated)
 
         except Exception as exc:
             print(f"{rule_id}: failed with exception: {exc}")
 
-            raw_outputs.append(
-                {
-                    "rule_id": rule_id,
-                    "source_rule": source_rule,
-                    "parsed_response": generated,
-                    "exception": repr(exc),
-                }
-            )
-
-            rejected.append(
-                {
-                    "rule_id": rule_id,
-                    "source_rule": source_rule,
-                    "generated_template": generated,
-                    "errors": [str(exc)],
-                }
-            )
-
-    summary: JsonDict = {
-        "timestamp": datetime.now().isoformat(timespec="seconds"),
-        "input_rules_path": str(config.input_rules_path),
-        "prompt_path": str(config.prompt_path),
-        "schema_path": str(config.schema_path),
-        "model": model,
-        "temperature": temperature,
-        "max_output_tokens": max_output_tokens,
-        "thinking_budget": thinking_budget,
-        "validate_outputs": validate_outputs,
-        "total_rules": len(rendered_prompts),
-        "accepted": len(accepted),
-        "rejected": len(rejected),
-        "output_paths": config.output_paths(),
-    }
-
     save_json(config.accepted_templates_path, accepted)
-    save_json(config.rejected_templates_path, rejected)
-    save_json(config.raw_outputs_path, raw_outputs)
-    save_json(config.run_summary_path, summary)
 
     print("\nDone.")
-    print(f"Accepted: {len(accepted)}")
-    print(f"Rejected: {len(rejected)}")
-    print(f"Saved accepted templates to: {config.accepted_templates_path}")
-    print(f"Saved rejected rules to: {config.rejected_templates_path}")
-    print(f"Saved raw outputs to: {config.raw_outputs_path}")
-    print(f"Saved run summary to: {config.run_summary_path}")
+    print(f"Saved templates to: {config.accepted_templates_path}")
 
     return output_dir
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--input-rules",
-        type=str,
-        default="outputs/plain_english_rules.json",
-        help="Path to plain_english_rules.json",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="outputs/ltl_templates",
-        help="Directory for LTL template outputs",
-    )
-    parser.add_argument(
-        "--validate",
-        action="store_true",
-        help="Validate generated templates. Disabled by default for now.",
-    )
-
-    args = parser.parse_args()
-
-    root = _rule_generation_root()
-
-    input_rules_path = Path(args.input_rules)
-    if not input_rules_path.is_absolute():
-        input_rules_path = root / input_rules_path
-
-    output_dir = Path(args.output_dir)
-    if not output_dir.is_absolute():
-        output_dir = root / output_dir
-
-    generate_ltl_templates_for_rules(
-        plain_english_rules_path=input_rules_path,
-        output_dir=output_dir,
-        validate_outputs=args.validate,
-    )
-
-
-if __name__ == "__main__":
-    main()

@@ -165,7 +165,7 @@ def run_map(
 
     print("\n===== ONLINE RULE GENERATION =====")
 
-    rule_output_base = Path(__file__).resolve().parents[2] / "rule_generation" / "outputs" / "online"
+    rule_output_base = Path(__file__).resolve().parents[2] / "rule_generation" / "outputs"
 
     if task_id is not None:
         rule_output_base = rule_output_base / f"task_{task_id}"
@@ -178,19 +178,18 @@ def run_map(
         env_info=env_info,
         task_record=task_record,
         output_dir=rule_output_base,
-        debug_output=True,
+        debug_output=False,
         revision_rounds=1,
     )
 
     print(f"Generated mission-specific rules saved to: {generated_rules_dir}")
     
     plain_english_rules_path = generated_rules_dir / "plain_english_rules.json"
-    ltl_output_dir = generated_rules_dir / "ltl_templates"
+    ltl_output_dir = generated_rules_dir
 
     generated_ltl_dir = generate_ltl_templates_for_rules(
         plain_english_rules_path=plain_english_rules_path,
         output_dir=ltl_output_dir,
-        validate_outputs=False,
     )
 
     print(f"Generated LTL templates saved to: {generated_ltl_dir}")

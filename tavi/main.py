@@ -38,7 +38,7 @@ if __name__ == "__main__":
     # one controller for all tasks — window opens once, scene is reset between tasks
     controller = Controller()
 
-    MAX_TASKS = 1
+    MAX_TASKS = 10
 
     with jsonlines.open(INPUT_FILE) as reader:
         for idx, task in enumerate(reader):

@@ -29,7 +29,7 @@ def save_outputs(
     output_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = output_dir / f"online_english_rules_{timestamp}"
+    run_dir = output_dir / f"rules_{timestamp}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
     def write_json(name: str, data) -> None:
@@ -41,26 +41,28 @@ def save_outputs(
     def write_text(name: str, data: str) -> None:
         (run_dir / name).write_text(data, encoding="utf-8")
 
-    if mission_context is not None:
-        write_json("mission_context.json", mission_context)
 
-    if prompt is not None:
-        write_text("prompt.txt", prompt)
+    if debug_output:
+        if mission_context is not None:
+            write_json("mission_context.json", mission_context)
 
-    if "initial_rules" in pipeline_result and debug_output:
-        write_json("rules_v1_initial.json", pipeline_result["initial_rules"])
+        if prompt is not None:
+            write_text("prompt.txt", prompt)
 
-    if "initial_expansion" in pipeline_result:
-        write_json("rule_expansion_candidates.json", pipeline_result["initial_expansion"])
+        if "initial_rules" in pipeline_result and debug_output:
+            write_json("rules_v1_initial.json", pipeline_result["initial_rules"])
 
-    for round_info in pipeline_result.get("rounds", []):
-        round_idx = round_info["round"]
+        if "initial_expansion" in pipeline_result:
+            write_json("rule_expansion_candidates.json", pipeline_result["initial_expansion"])
 
-        if "evaluation" in round_info and debug_output:
-            write_json(f"evaluation_v{round_idx}.json", round_info["evaluation"])
+        for round_info in pipeline_result.get("rounds", []):
+            round_idx = round_info["round"]
 
-        if "revised_rules" in round_info and debug_output:
-            write_json(f"rules_v{round_idx + 1}.json", round_info["revised_rules"])
+            if "evaluation" in round_info and debug_output:
+                write_json(f"evaluation_v{round_idx}.json", round_info["evaluation"])
+
+            if "revised_rules" in round_info and debug_output:
+                write_json(f"rules_v{round_idx + 1}.json", round_info["revised_rules"])
 
     if "final_rules" in pipeline_result:
         write_json("plain_english_rules.json", pipeline_result["final_rules"])
@@ -109,11 +111,6 @@ def generate_rules_for_mission(
     context_dir = root / "context"
     prompt_dir = root / "prompts"
 
-    if output_dir is None:
-        output_dir = root / "outputs" / "online"
-    else:
-        output_dir = Path(output_dir)
-
     mission_context = {
         "mission_instruction_used_by_agent": mission_instruction,
         "high_level_plan_generated_by_vlm": high_level_plan,
@@ -154,28 +151,3 @@ def generate_rules_for_mission(
     )
 
     return run_dir
-
-
-if __name__ == "__main__":
-    # Simple manual smoke test. Real usage is from map_vlm.py before execution.
-    run_dir = generate_rules_for_mission(
-        mission_instruction="Put the CreditCard in the Microwave and open the Microwave.",
-        high_level_plan="Find the credit card, pick it up, find the microwave, open it, put the credit card inside, close it, and turn it on.",
-        low_level_plan=[
-            "find CreditCard",
-            "pick CreditCard",
-            "find Microwave",
-            "open Microwave",
-            "put Microwave",
-            "close Microwave",
-            "turn on Microwave",
-        ],
-        scene_objects=["CreditCard", "Microwave"],
-        env_info="Kitchen scene containing a CreditCard and Microwave.",
-        task_record={},
-        debug_output=True,
-        revision_rounds=1,
-    )
-
-    print("[OK] Online mission-specific rule generation finished.")
-    print(f"Saved files to: {run_dir}")

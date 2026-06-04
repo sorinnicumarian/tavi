@@ -135,25 +135,21 @@ def convert_json(old_data: dict) -> dict:
 
     # ==========================================================
     # Convert exec field
+    # exec(ToggleObjectOn,candle_1) -> exec__ToggleObjectOn__candle_1
+    # exec(DropHandObject)          -> exec__DropHandObject
+    # None (dropped actions)        -> skip
     # ==========================================================
     exec_string = old_data.get("exec")
 
     if exec_string:
-
-        match = re.match(r"exec\((.*)\)", exec_string)
-
+        match = re.match(r"exec\(([^,)]+)(?:,([^)]+))?\)", exec_string)
         if match:
-            action_name = match.group(1).strip()
-            action_name = to_pascal_case(action_name)
-
-            new_data[f"exec_{action_name}"] = True
-
-    # Fallback: derive from action name if exec missing
-    elif "action" in old_data and old_data["action"].get("name"):
-
-        action_name = to_pascal_case(old_data["action"]["name"])
-
-        new_data[f"exec_{action_name}"] = True
+            action_part = match.group(1).strip()
+            object_part = match.group(2).strip() if match.group(2) else None
+            if object_part:
+                new_data[f"exec__{action_part}__{object_part}"] = True
+            else:
+                new_data[f"exec__{action_part}"] = True
 
     # ==========================================================
     # Add terminal marker

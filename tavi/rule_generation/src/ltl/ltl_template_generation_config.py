@@ -100,32 +100,6 @@ class LTLTemplateGenerationConfig:
         """
         Load and normalize input plain-English rules.
 
-        Supported input shapes
-        ----------------------
-
-        1. List of rule dictionaries:
-            [
-              {"rule_id": "R01", "plain_english_rule": "..."},
-              ...
-            ]
-
-        2. Dictionary of rule dictionaries:
-            {
-              "Rule R01: Some Title": {
-                "Plain-English rule": "...",
-                ...
-              }
-            }
-
-        3. Test-case wrapper:
-            {
-              "purpose": "...",
-              "test_cases": [
-                {"rule_id": "T01", "plain_english_rule": "..."},
-                ...
-              ]
-            }
-
         Returns
         -------
         list[dict]
@@ -150,9 +124,6 @@ class LTLTemplateGenerationConfig:
 
         if isinstance(raw_data, list):
             return raw_data
-
-        if isinstance(raw_data, dict) and isinstance(raw_data.get("test_cases"), list):
-            return raw_data["test_cases"]
 
         if isinstance(raw_data, dict):
             extracted: List[JsonDict] = []
@@ -332,18 +303,6 @@ class LTLTemplateGenerationConfig:
     def accepted_templates_path(self) -> Path:
         return self.output_dir / "rules_ltl_templates.json"
 
-    @property
-    def rejected_templates_path(self) -> Path:
-        return self.output_dir / "rejected_rules.json"
-
-    @property
-    def raw_outputs_path(self) -> Path:
-        return self.output_dir / "raw_llm_outputs.json"
-
-    @property
-    def run_summary_path(self) -> Path:
-        return self.output_dir / "run_summary.json"
-
     def output_paths(self) -> JsonDict:
         """
         Return all standard output paths as strings.
@@ -352,9 +311,6 @@ class LTLTemplateGenerationConfig:
 
         return {
             "accepted_templates": str(self.accepted_templates_path),
-            "rejected_templates": str(self.rejected_templates_path),
-            "raw_outputs": str(self.raw_outputs_path),
-            "run_summary": str(self.run_summary_path),
         }
 
 
@@ -368,23 +324,3 @@ def save_json(path: Path, data: Any) -> None:
         json.dumps(data, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
-
-
-if __name__ == "__main__":
-    # Lightweight manual sanity check.
-    config = LTLTemplateGenerationConfig.from_project_root(
-        project_root=".",
-        input_rules_path="test_cases/plain_english_ltl_template_test_cases.json",
-    )
-
-    config.validate_paths()
-    config.ensure_output_dir()
-
-    rules = config.load_input_rules()
-    prompts = config.render_all_prompts()
-
-    print(f"Loaded {len(rules)} rule(s).")
-    print(f"Rendered {len(prompts)} prompt(s).")
-    print("Output paths:")
-    for label, path in config.output_paths().items():
-        print(f"  {label}: {path}")

@@ -15,24 +15,51 @@ An agent moves around a simulated home and performs tasks — pick up a knife, t
 
 Existing tools like AgentSpec only check one action at a time. They can't answer "did the agent ever hold a knife while the stove was on?" — that requires reasoning over a full sequence of steps. TAVI is being built to do that.
 
-### Current state (v0.4)
+### Current state (v0.5)
 
-TAVI covers trace collection, autonomous agent execution, SafeAgentBench integration, and plain-English safety rule generation:
+TAVI covers trace collection, autonomous agent execution, SafeAgentBench integration, LTL rule generation, and trace translation:
 
-- **`tavi/main.py`** — single entry point. Runs SafeAgentBench tasks through a VLM-guided low-level planner and records traces to `traces/`. Run with `python -m tavi.main`.
-- **`rule_generation`** — an LLM pipeline (Gemini 2.5 Pro) that generates, evaluates, and iteratively refines plain-English safety rules, ready for LTL translation.
-- **`tavi/simulation/scenarios/legacy/`** — `scenario_1_hardcoded.py` (fixed action baseline) and `scenario_2_autonomous.py` (Gemini per-step agent) kept for reference; no longer part of the main pipeline.
+- **`tavi/main.py`** — single entry point. Runs SafeAgentBench long_horizon tasks through Gemini Pro VLM planner and records traces to `traces/`.
+- **`rule_generation/`** — LLM pipeline (Gemini 2.5 Pro) that generates, evaluates, and iteratively refines plain-English safety rules, then translates them to parametric LTL templates.
+- **`tavi/trace_translator/main.py`** — converts JSONL traces to `flloat`-compatible boolean dicts (`exec__ToggleObjectOn__candle_1: true`), ready for LTL checking.
+- **`tavi/simulation/scenarios/legacy/`** — `scenario_1_hardcoded.py` and `scenario_2_autonomous.py` kept for reference; no longer part of the main pipeline.
 
-Traces are written to `traces/`. The LTL checker, violation reporter, and runtime monitor are not built yet.
+The trace format is aligned with the LTL rule templates. End-to-end checking (load traces → ground rules → `flloat` → violations) is implemented in a separate branch and being merged.
 
 ### Changelog
+
+#### v0.5 (2026-06-03)
+
+**exec predicate format aligned with LTL rule templates:**
+- `exec` atoms now use `exec__AI2THORActionName__object_sid` format (e.g. `exec__ToggleObjectOn__candle_1`) matching `rules_ltl_templates.json`
+- Low-level plan verbs mapped to canonical AI2-THOR action names (`turn on` → `ToggleObjectOn`, `pick` → `PickupObject`, etc.)
+- `find` dropped from exec predicates — navigation, not safety-relevant
+- Object SID inferred from plan string by matching against `id_map` when `objectId` not explicitly passed
+- `capture_step` now accepts `action_args` for explicit objectId passthrough
+
+**Trace translator (`tavi/trace_translator/main.py`):**
+- Converts JSONL traces to `flloat`-compatible boolean dicts per step
+- exec format aligned with LTL rule templates — `exec__ToggleObjectOn__candle_1` matches `rules_ltl_templates.json` atoms directly
+- Verified on 10 abstract tasks: `R_HEAT_SOURCE_SHUTDOWN` rule catches 2 fire hazard violations (tasks 0 and 5, candle toggled on and never extinguished)
+
+**Model and config:**
+- Switched to Gemini 2.5 Pro + long_horizon tasks as main pipeline
+- Centralized model config in `tavi/simulation/planner/config.py` (`GEMINI_MODEL`, `GEMINI_MAX_TOKENS`)
+- Benchmark script (`benchmark.py`) runs Flash vs Pro across abstract + long_horizon categories, saves CSV results with token metadata
+
+**Benchmark results (16k tokens, 10 tasks/category):**
+
+| Category | Flash | Pro |
+|---|---|---|
+| abstract | 0.754 | 0.805 |
+| long_horizon | 0.613 | **0.860** |
 
 #### v0.4 (2026-05-17)
 
 **Codebase restructure:**
 - Deleted `tavi/simulation/scenarios/generate_traces.py` — logic merged into `tavi/main.py`, which is now the single entry point for running benchmarks
 - Deleted `tavi/simulation/scenarios/scenario_runner.py`, `map_vlm.py`, `low_level_planner.py`, `utils.py` from `scenarios/` — moved to `tavi/simulation/planner/` where they belong
-- Moved `scenario_1_hardcoded.py` and `scenario_2_autonomous.py` to `tavi/simulation/scenarios/legacy/` — superseded by Eldi's SafeAgentBench pipeline
+- Moved `scenario_1_hardcoded.py` and `scenario_2_autonomous.py` to `tavi/simulation/scenarios/legacy/` — superseded by the SafeAgentBench pipeline
 - Moved SafeAgentBench input files to `tavi/simulation/scenarios/safeagentbench_tasks/` and renamed with `_tasks` suffix (`safeagentbench_abstract_tasks.jsonl`, etc.)
 - Deleted stale duplicate JSONLs that were in `tavi/simulation/scenarios/` (`abstract_1009.jsonl`, `safe_detailed_1009.jsonl`, etc.)
 - Moved pre-schema-change traces to `traces_obsolete/` (`run.jsonl`, `traces.jsonl`, old `safeagentbench_abstract_traces.jsonl`)
@@ -125,8 +152,10 @@ These are the bridge to Bogdan's rule vocabulary. AI2-THOR has no concept of "fl
 
 | Predicate | Source | Meaning |
 |---|---|---|
-| `exec(ActionName, id)` | action taken this step | e.g. `exec(PickupObject, knife_1)` |
-| `exec(ActionName)` | action with no object argument | e.g. `exec(MoveAhead)` |
+| `exec__ActionName__object_sid` | action taken this step | e.g. `exec__PickupObject__knife_1` |
+| `exec__ActionName` | action with no object argument | e.g. `exec__DropHandObject` |
+
+Action names are canonical AI2-THOR names: `ToggleObjectOn`, `ToggleObjectOff`, `PickupObject`, `PutObject`, `OpenObject`, `CloseObject`, `SliceObject`, `BreakObject`, `CookObject`, `CleanObject`, `DirtyObject`, `DropHandObject`, `ThrowObject`, `Pour`, `FillObjectWithLiquid`, `EmptyLiquid`. `find` (navigation) is dropped.
 
 ---
 
@@ -158,8 +187,12 @@ The following AI2-THOR metadata fields are available but not extracted as predic
   trace_collector
        ↓  extracts ground predicates, writes one JSONL line per step
   traces/<name>.jsonl
-       ↓  (future) checked against LTL/CTL safety rules
-  violations report
+       ↓  trace_translator/main.py — converts to flloat boolean dicts
+  traces/<name>_translated.jsonl
+       ↓  ground_rules.py — instantiates LTL templates with real object SIDs
+  grounded LTL formulas
+       ↓  check_ltl.py + flloat — evaluates each formula over the trace
+  violations report (rule_id, task_id, binding, formula)
 ```
 
 **AI2-THOR** ([Kolve et al., 2017](https://arxiv.org/abs/1712.05474)) is a 3D home simulator. It runs locally and exposes a Python API. It only accepts discrete actions — `MoveAhead`, `RotateRight`, `PickupObject`, etc. — not natural language. Docs: [navigation](https://ai2thor.allenai.org/ithor/documentation/navigation) · [full reference](https://ai2thor.allenai.org/ithor/documentation).

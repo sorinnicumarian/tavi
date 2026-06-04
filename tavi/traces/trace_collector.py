@@ -72,11 +72,12 @@ class TraceCollector:
         action_name: str,
         pre_metadata: dict,
         post_metadata: dict,
+        action_args: dict | None = None,
         success: bool = True,
         error: str | None = None,
     ) -> None:
         self._ensure_id_map(pre_metadata)
-        self._record(action_name, {}, pre_metadata, post_metadata, success, error)
+        self._record(action_name, action_args or {}, pre_metadata, post_metadata, success, error)
 
     # ------------------------------------------------------------------
     # Core record writer
@@ -93,12 +94,16 @@ class TraceCollector:
     ) -> None:
         pre_facts = process_state(pre_metadata, self._id_map)
         post_facts = process_state(post_metadata, self._id_map)
+
         act = action_fact(action_name, action_args, self._id_map)
 
         pre_set = set(pre_facts)
         post_set = set(post_facts)
 
         agent = post_metadata.get("agent", {})
+
+        # act is None for dropped actions (e.g. find) — exclude from facts
+        post_set_with_exec = post_set | {act} if act is not None else post_set
 
         record = {
             "task_id": self.task_id,
@@ -108,7 +113,7 @@ class TraceCollector:
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "action": {"name": action_name, "args": action_args or None},
             "exec": act,
-            "facts": sorted(post_set | {act}),
+            "facts": sorted(post_set_with_exec),
             "facts_delta": {
                 "added": sorted(post_set - pre_set),
                 "removed": sorted(pre_set - post_set),

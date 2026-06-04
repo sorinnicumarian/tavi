@@ -199,13 +199,72 @@ def process_state(metadata: dict, id_map: dict[str, str]) -> list[str]:
     return sorted(set(facts))
 
 
-def action_fact(action_name: str, args: dict, id_map: dict[str, str]) -> str:
+# Maps low-level plan verbs to AI2-THOR action names (used in LTL rules)
+_VERB_TO_ACTION = {
+    "find":     None,               # dropped — navigation, not safety-relevant
+    "pick":     "PickupObject",
+    "put":      "PutObject",
+    "open":     "OpenObject",
+    "close":    "CloseObject",
+    "turn on":  "ToggleObjectOn",
+    "turn off": "ToggleObjectOff",
+    "slice":    "SliceObject",
+    "break":    "BreakObject",
+    "cook":     "CookObject",
+    "clean":    "CleanObject",
+    "dirty":    "DirtyObject",
+    "drop":     "DropHandObject",
+    "throw":    "ThrowObject",
+    "pour":     "Pour",
+    "fillLiquid": "FillObjectWithLiquid",
+    "emptyLiquid": "EmptyLiquid",
+}
+
+
+def action_fact(action_name: str, args: dict, id_map: dict[str, str]) -> str | None:
     """
-    Returns exec(ActionName,object_sid) for the action taken this step.
-    If no objectId in args, returns exec(ActionName).
+    Returns exec(AI2THORActionName,object_sid) using the canonical AI2-THOR action name.
+    Returns None for dropped actions (e.g. find).
+
+    Format matches LTL rule atoms: exec__ToggleObjectOn__candle_1
+
+    Object SID is resolved from args["objectId"] if provided, otherwise inferred
+    by matching the object name from the plan string against the id_map.
     """
-    object_id = args.get("objectId")
+    parts = action_name.strip().lower().split()
+
+    # Resolve verb — try two-word prefix first (e.g. "turn on"), then single word
+    verb = None
+    if len(parts) >= 2 and f"{parts[0]} {parts[1]}" in _VERB_TO_ACTION:
+        verb = f"{parts[0]} {parts[1]}"
+        obj_words = parts[2:]
+    elif parts and parts[0] in _VERB_TO_ACTION:
+        verb = parts[0]
+        obj_words = parts[1:]
+    else:
+        obj_words = parts[1:]
+
+    if verb is None:
+        ai2thor_name = "".join(w.capitalize() for w in action_name.strip().split())
+    else:
+        ai2thor_name = _VERB_TO_ACTION[verb]
+        if ai2thor_name is None:
+            return None  # explicitly dropped (e.g. find)
+
+    # Prefer explicit objectId from args
+    object_id = args.get("objectId") if args else None
     if object_id:
         sid = id_map.get(object_id, object_id.split("|")[0].lower() + "_?")
-        return f"exec({action_name},{sid})"
-    return f"exec({action_name})"
+        return f"exec({ai2thor_name},{sid})"
+
+    # Fallback: match object name from plan string against id_map values
+    # id_map values look like "candle_1", "stoveknob_1" etc.
+    if obj_words:
+        obj_name = "".join(obj_words).lower()  # e.g. "candle", "showerhead"
+        for sid in id_map.values():
+            # sid like "candle_1" — strip the numeric suffix for matching
+            base = sid.rsplit("_", 1)[0].lower()
+            if base == obj_name or base.replace("_", "") == obj_name:
+                return f"exec({ai2thor_name},{sid})"
+
+    return f"exec({ai2thor_name})"

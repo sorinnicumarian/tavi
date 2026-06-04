@@ -13,6 +13,10 @@ from tavi.simulation.planner.utils import gen_low_level_plan, all_objs, execute_
 from dotenv import load_dotenv
 load_dotenv()
 
+from pathlib import Path
+from tavi.rule_generation.src.plain_english.main_english_rule_generator import generate_rules_for_mission
+from tavi.rule_generation.src.ltl.main_ltl_template_generation import generate_ltl_templates_for_rules
+
 api_key = os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 
@@ -132,6 +136,8 @@ def run_map(
     task,
     trace_collector=None,
     controller=None,
+    task_id=None,
+    task_record=None,
 ):
     # if a shared controller is passed in, just reset the scene — no new window
     owns_controller = controller is None
@@ -156,6 +162,37 @@ def run_map(
     print("\n===== LOW LEVEL PLAN =====")
     for step in low_level_plan:
         print(step)
+
+    print("\n===== ONLINE RULE GENERATION =====")
+
+    rule_output_base = Path(__file__).resolve().parents[2] / "rule_generation" / "outputs"
+
+    if task_id is not None:
+        rule_output_base = rule_output_base / f"task_{task_id}"
+
+    generated_rules_dir = generate_rules_for_mission(
+        mission_instruction=task,
+        high_level_plan=plan,
+        low_level_plan=low_level_plan,
+        scene_objects=objs_all,
+        env_info=env_info,
+        task_record=task_record,
+        output_dir=rule_output_base,
+        debug_output=False,
+        revision_rounds=1,
+    )
+
+    print(f"Generated mission-specific rules saved to: {generated_rules_dir}")
+    
+    plain_english_rules_path = generated_rules_dir / "plain_english_rules.json"
+    ltl_output_dir = generated_rules_dir
+
+    generated_ltl_dir = generate_ltl_templates_for_rules(
+        plain_english_rules_path=plain_english_rules_path,
+        output_dir=ltl_output_dir,
+    )
+
+    print(f"Generated LTL templates saved to: {generated_ltl_dir}")
 
     planner = LowLevelPlanner(controller)
 

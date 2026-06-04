@@ -77,6 +77,8 @@ if __name__ == "__main__":
                     task=instruction,
                     trace_collector=trace_collector,
                     controller=controller,
+                    task_id=idx,
+                    task_record=task,
                 )
                 status = "completed"
                 print(f"Finished task {idx} with SR={sr_step}")

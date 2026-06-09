@@ -234,7 +234,7 @@ is_countertop__{x}
 
 unless they are explicitly implemented in the trace processor.
 
-For first-stage rules, prefer existing trace-checkable predicates such as:
+For LTL rules, prefer existing trace-checkable predicates such as:
 
 ```text
 receptacle__{x}

@@ -106,8 +106,11 @@ def generate_ltl_templates_for_rules(
             print(f"{rule_id}: failed with exception: {exc}")
 
     save_json(config.accepted_templates_path, accepted)
+    final_templates_path = root / "outputs" / "rules_ltl_templates.json"
+    save_json(final_templates_path, accepted)
 
     print("\nDone.")
     print(f"Saved templates to: {config.accepted_templates_path}")
+    print(f"Saved final templates to: {final_templates_path}")
 
     return output_dir

@@ -3,23 +3,31 @@ Configuration utilities for the LTL-template generation stage.
 
 Main responsibility:
 - load the LTL-template prompt
+- load authoritative context files
 - load plain-English rule inputs
 - normalize rule dictionaries into the format expected by the prompt
 - render one prompt per rule
-- provide output paths for accepted/rejected/raw LTL-template outputs
-
+- provide output paths for accepted LTL-template outputs
 """
 
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 
 JsonDict = Dict[str, Any]
+
+
+REQUIRED_CONTEXT_FILES = [
+    "ai2thor_actions.md",
+    "ai2thor_object_states.md",
+    "ai2thor_object_types_and_categories.md",
+    "hazards_types.md",
+    "ltl_patterns.md",
+]
 
 
 @dataclass
@@ -40,6 +48,8 @@ class LTLTemplateGenerationConfig:
         For early testing, this can point to test_cases/plain_english_ltl_template_test_cases.json.
     output_dir:
         Directory where LTL-template generation outputs will be written.
+    context_dir:
+        Directory containing authoritative context markdown files.
     """
 
     project_root: Path
@@ -47,9 +57,14 @@ class LTLTemplateGenerationConfig:
     schema_path: Path
     input_rules_path: Path
     output_dir: Path
+    context_dir: Path
 
-    # The placeholder used inside plain_english_to_ltl_template_prompt.md
+    # Placeholder used inside plain_english_to_ltl_template_prompt.md
     prompt_rule_placeholder: str = "{{PLAIN_ENGLISH_RULE_JSON}}"
+
+    # Optional placeholder used inside plain_english_to_ltl_template_prompt.md.
+    # If the placeholder is missing, the context block is appended automatically.
+    prompt_context_placeholder: str = "{{AUTHORITATIVE_CONTEXT_FILES}}"
 
     @classmethod
     def from_project_root(
@@ -74,21 +89,112 @@ class LTLTemplateGenerationConfig:
             project_root=root,
             prompt_path=root / "prompts" / "plain_english_to_ltl_template_prompt.md",
             schema_path=root / "schemas" / "ltl_template_rule.schema.json",
-            input_rules_path=(
-                root / input_rules_path
-                if input_rules_path is not None and not Path(input_rules_path).is_absolute()
-                else Path(input_rules_path).resolve()
-                if input_rules_path is not None
-                else root / "outputs" / "plain_english_rules.json"
+            input_rules_path=cls._resolve_project_path(
+                root=root,
+                path=input_rules_path,
+                default=root / "outputs" / "plain_english_rules.json",
             ),
-            output_dir=(
-                root / output_dir
-                if output_dir is not None and not Path(output_dir).is_absolute()
-                else Path(output_dir).resolve()
-                if output_dir is not None
-                else root / "outputs" / "ltl_templates"
+            output_dir=cls._resolve_project_path(
+                root=root,
+                path=output_dir,
+                default=root / "outputs" / "ltl_templates",
             ),
+            context_dir=root / "context",
         )
+
+    @staticmethod
+    def _resolve_project_path(
+        root: Path,
+        path: Optional[Path | str],
+        default: Path,
+    ) -> Path:
+        """
+        Resolve an optional path relative to the project root.
+
+        If path is None, return default.
+        If path is absolute, return it as-is.
+        If path is relative, resolve it against root.
+        """
+
+        if path is None:
+            return default
+
+        candidate = Path(path)
+
+        if candidate.is_absolute():
+            return candidate.resolve()
+
+        return (root / candidate).resolve()
+
+    # ------------------------------------------------------------------
+    # Context loading
+    # ------------------------------------------------------------------
+
+    def load_context_files(self) -> dict[str, str]:
+        """
+        Load all context files required by the LTL-template translator.
+
+        These files are treated as authoritative project knowledge.
+        The LTL prompt should use them instead of duplicating all domain
+        information inside one large prompt.
+        """
+
+        context_sections: dict[str, str] = {}
+        missing_files: list[str] = []
+
+        for filename in REQUIRED_CONTEXT_FILES:
+            path = self.context_dir / filename
+
+            if not path.exists():
+                missing_files.append(str(path))
+                continue
+
+            context_sections[filename] = path.read_text(encoding="utf-8")
+
+        if missing_files:
+            missing = "\n".join(f"- {p}" for p in missing_files)
+            raise FileNotFoundError(
+                "Missing required LTL context files:\n"
+                f"{missing}\n\n"
+                "The LTL-template translator must receive the same authoritative "
+                "context modules as the plain-English rule generator."
+            )
+
+        return context_sections
+
+    def render_context_block(self) -> str:
+        """
+        Render context files as clearly separated prompt sections.
+
+        The separators are intentionally explicit so the LLM treats each markdown
+        file as a separate source module rather than one blended instruction blob.
+        """
+
+        context_sections = self.load_context_files()
+
+        parts = [
+            "# Authoritative Context Files",
+            "",
+            "Use the following context files as the authoritative project knowledge.",
+            "Do not invent atoms, predicates, object categories, relations, actions, or future vocabulary outside these files.",
+            "If the LTL prompt conflicts with these context files, prefer the context files.",
+            "",
+        ]
+
+        for filename, content in context_sections.items():
+            parts.append(f"<!-- BEGIN CONTEXT FILE: {filename} -->")
+            parts.append(f"## `{filename}`")
+            parts.append("")
+            parts.append(content.strip())
+            parts.append("")
+            parts.append(f"<!-- END CONTEXT FILE: {filename} -->")
+            parts.append("")
+
+        return "\n".join(parts).strip()
+
+    # ------------------------------------------------------------------
+    # Schema and input loading
+    # ------------------------------------------------------------------
 
     def load_schema(self) -> JsonDict:
         """Load the JSON schema used to validate LTL-template outputs."""
@@ -115,7 +221,11 @@ class LTLTemplateGenerationConfig:
             raw_data = json.load(f)
 
         raw_rules = self._extract_rule_list(raw_data)
-        return [self.normalize_rule(rule, fallback_index=i) for i, rule in enumerate(raw_rules, start=1)]
+
+        return [
+            self.normalize_rule(rule, fallback_index=i)
+            for i, rule in enumerate(raw_rules, start=1)
+        ]
 
     def _extract_rule_list(self, raw_data: Any) -> List[JsonDict]:
         """
@@ -126,6 +236,16 @@ class LTLTemplateGenerationConfig:
             return raw_data
 
         if isinstance(raw_data, dict):
+            # Support wrappers such as:
+            # {"rules": [...]}
+            # {"test_cases": [...]}
+            for wrapper_key in ("rules", "test_cases"):
+                wrapped = raw_data.get(wrapper_key)
+                if isinstance(wrapped, list):
+                    return wrapped
+
+            # Support dictionary-of-rules format:
+            # {"Rule R01: ...": {...}, "Rule R02: ...": {...}}
             extracted: List[JsonDict] = []
 
             for key, value in raw_data.items():
@@ -141,7 +261,7 @@ class LTLTemplateGenerationConfig:
 
         raise ValueError(
             "Unsupported input rules JSON format. Expected a list, a dictionary of rules, "
-            "or a wrapper containing a 'test_cases' list."
+            "or a wrapper containing a 'rules' or 'test_cases' list."
         )
 
     # ------------------------------------------------------------------
@@ -158,8 +278,6 @@ class LTLTemplateGenerationConfig:
         - "Hazard types"
         - "Pattern family"
         """
-
-        source_key = str(rule.get("_source_key", ""))
 
         rule_id = (
             rule.get("rule_id")
@@ -222,6 +340,8 @@ class LTLTemplateGenerationConfig:
             "Why it matters",
             "key_trace_concepts",
             "Key trace concepts",
+            "temporal_diagnostic_structure",
+            "Temporal diagnostic structure",
         ]
 
         for key in optional_passthrough_keys:
@@ -238,10 +358,15 @@ class LTLTemplateGenerationConfig:
         """
         Render the prompt for one normalized plain-English rule.
 
+        The rendered prompt includes:
+        - the base LTL-template prompt,
+        - the authoritative context files,
+        - the one plain-English rule to translate.
+
         Parameters
         ----------
         rule:
-            One normalized rule dictionary.
+            One normalized or raw rule dictionary.
         prompt_template:
             Optional already-loaded prompt template. If omitted, the prompt is loaded
             from disk.
@@ -258,6 +383,7 @@ class LTLTemplateGenerationConfig:
         normalized_rule = self.normalize_rule(rule, fallback_index=1)
 
         rule_json = json.dumps(normalized_rule, indent=2, ensure_ascii=False)
+        context_block = self.render_context_block()
 
         if self.prompt_rule_placeholder not in prompt_template:
             raise ValueError(
@@ -265,7 +391,30 @@ class LTLTemplateGenerationConfig:
                 f"{self.prompt_path}."
             )
 
-        return prompt_template.replace(self.prompt_rule_placeholder, rule_json)
+        rendered_prompt = prompt_template.replace(
+            self.prompt_rule_placeholder,
+            rule_json,
+        )
+
+        if self.prompt_context_placeholder in rendered_prompt:
+            rendered_prompt = rendered_prompt.replace(
+                self.prompt_context_placeholder,
+                context_block,
+            )
+        else:
+            # Backward-compatible fallback:
+            # If the prompt has not yet been refactored to include the context
+            # placeholder, append the context block before the input rule section.
+            #
+            # This still guarantees that the LTL translator receives the context.
+            rendered_prompt = (
+                rendered_prompt.rstrip()
+                + "\n\n---\n\n"
+                + context_block
+                + "\n"
+            )
+
+        return rendered_prompt
 
     def render_all_prompts(self) -> List[JsonDict]:
         """
@@ -283,7 +432,8 @@ class LTLTemplateGenerationConfig:
         prompt_template = self.prompt_path.read_text(encoding="utf-8")
         rules = self.load_input_rules()
 
-        rendered = []
+        rendered: List[JsonDict] = []
+
         for rule in rules:
             rendered.append(
                 {
@@ -320,7 +470,10 @@ def save_json(path: Path, data: Any) -> None:
     """
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
+
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(
         json.dumps(data, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
+    tmp_path.replace(path)

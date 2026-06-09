@@ -10,6 +10,7 @@ REQUIRED_FILES = [
     "hazards_types.md",
     "ltl_patterns.md",
     "diagnostic_rule_design.md",
+    "ai2thor_object_types_and_categories.md",
 ]
 
 

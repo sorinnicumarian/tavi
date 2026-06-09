@@ -153,10 +153,11 @@ The robotic specification-pattern literature is useful here mainly for avoidance
 - recovery after hazardous exposure
 - invariants and avoidance as fallback patterns
 
-These patterns should be instantiated over trace predicates derived from your other context files, such as:
-- actions: `pick_up`, `put`, `turn_on`, `turn_off`, `open`, `close`
-- states: `isOpen`, `isToggled`, `isFilledWithLiquid`, `ObjectTemperature`
-- derived tags: `isHeatSource`, `isElectrical`, `isFragile`, `isFlammable`
-- hazards: `Fire`, `Electrical Shock`, `Liquid and Spill Damage`, `Appliance Misuse`
+These patterns should be instantiated over normalized trace predicates such as:
+- actions: exec__PickupObject__{x}, exec__PutObject__{r}, exec__ToggleObjectOn__{x}, exec__ToggleObjectOff__{x}
+- states: open__{x}, toggled_on__{x}, holding__{x}, broken__{x}, cooked__{x}
+- deltas: added__holding__{x}, removed__holding__{x}, added__toggled_on__{x}
+- relations: on__{x}__{r}
+- semantic tags: heat_source__{x}, electrical__{x}, fragile__{x}, flammable__{x}, chemical__{x}
 
 The aim is not to generate mathematically sophisticated formulas first, but to generate correct, interpretable temporal rule templates that can later be translated into LTL.

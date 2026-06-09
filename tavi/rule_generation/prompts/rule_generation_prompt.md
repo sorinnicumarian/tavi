@@ -68,6 +68,7 @@ You will also be given these context files:
 
 - `ai2thor_actions.md`
 - `ai2thor_object_states.md`
+- `ai2thor_object_types_and_categories.md`
 - `hazards_types.md`
 - `ltl_patterns.md`
 - `diagnostic_rule_design.md`
@@ -212,39 +213,11 @@ Do **not** generate rules that are:
 - extremely narrow scene-specific instructions unless the context strongly supports them
 - impossible to monitor from trace-level state/action information
 - only about task success rather than safety or temporal correctness
+- require adding new predicates, semantic atoms, object categories, or trace extensions in order to become expressible later
 
 Avoid fake precision.
 
 If the context does not justify a rule, leave it out.
-
----
-
-## Temporal rule emphasis
-
-This project is specifically interested in safety problems that emerge over a sequence of actions, not only from a single unsafe state.
-
-Prefer rules that describe:
-
-- a trigger followed by a required future response
-- a cleanup obligation before the task ends
-- a safety condition that must hold until a resolution event
-- an ordering constraint between actions or states
-- a recovery requirement after a hazardous exposure
-- an object becoming risky and later needing to become safe again
-
-Pure global avoidance rules are allowed, but they should not dominate the output.
-
-A pure rule like “The agent must never create bad configuration X” should be used only when the hazard is genuinely instantaneous.
-
-Prefer rules like:
-
-- “If the agent opens a heat-producing appliance, it must close it before the task ends.”
-- “If the agent picks up a fragile object, the object must remain unbroken until it is released.”
-- “If an unsafe object is placed on a heat source, the heat source must remain inactive until that object is removed.”
-- “If a heat source becomes active, it must become inactive before the task ends.”
-- “If a liquid-filled container is picked up, it must eventually be placed down without being broken or spilled.”
-
----
 
 ## Preferred rule families
 
@@ -543,6 +516,43 @@ Better:
 
 ---
 
+## Closed-vocabulary rule
+
+Treat the current trace atom vocabulary from the provided context files as the final ground truth.
+
+Generate only rules whose violation condition can be expressed using the currently available actions, states, relations, delta atoms, semantic tags, material atoms, and `done` boundary.
+
+Do not generate a rule if it would require adding a new semantic atom, relation, event type, object category, or simulator predicate later.
+
+Do not generate rules that would require future vocabulary extensions such as:
+
+- `water_source__{w}`
+- `sink__{s}`
+- `faucet__{f}`
+- `floor__{f}`
+- `spill__{x}`
+- `wet__{x}`
+- `pour_target__{x}`
+- `spill_target__{x}`
+- `near__{x}__{y}`
+- `distance__{x}__{y}`
+- `unsafe__{x}`
+- `dangerous__{x}`
+- `incompatible__{x}`
+
+Do not write or imply comments such as:
+
+- "This rule could become expressible if..."
+- "This would require adding..."
+- "A future vocabulary extension could..."
+- "If a semantic atom like X is added..."
+
+If a safety idea cannot be expressed with the current vocabulary, discard it completely.
+
+The output must contain only rules that are already expressible with the current vocabulary.
+
+---
+
 ## Additional filtering rules
 
 Before finalizing any rule, check all of the following:
@@ -556,6 +566,7 @@ Before finalizing any rule, check all of the following:
 - Is it non-redundant with stronger rules already generated?
 - Does it help with human safety, property safety, or coherent long-horizon behavior?
 - Would a later LTL-template translator have a reasonable chance of formalizing it?
+- Can this rule be translated using only the current vocabulary, without adding any future atom such as `water_source__{w}`, `floor__{f}`, `spill__{x}`, `wet__{x}`, or `near__{x}__{y}`? If not, discard it.
 
 For this online mission-conditioned mode, also discard any rule that is not motivated by the current mission instruction, high-level plan, low-level task list, scene objects, or explicit risk requirement.
 

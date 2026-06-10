@@ -160,6 +160,39 @@ def convert_json(old_data: dict) -> dict:
     new_data["facts"] = facts_dict
 
     return new_data
+def get_steps(
+    trace_file: str = OUTPUT_FILE,
+    task_id: int | None = None,
+    step_id: int | None = None,
+):
+    """
+    Yields translated step dicts from a trace file.
+
+    Args:
+        trace_file: path to the translated JSONL (default: OUTPUT_FILE)
+        task_id:    if given, only yield steps for that task
+        step_id:    if given, only yield the step with that step_id
+                    (within the task_id filter if also set)
+
+    Yields dicts with keys: task_id, step_id, action, facts, outcome, …
+    Skips task_start / task_end / task_separator records.
+
+    Example:
+        for step in iter_steps(task_id=1, step_id=0):
+            print(step["facts"])
+    """
+    with open(trace_file, "r", encoding="utf-8") as f:
+        for line in f:
+            record = json.loads(line)
+            if record.get("record_type") in ("task_start", "task_end", "task_separator"):
+                continue
+            if task_id is not None and record.get("task_id") != task_id:
+                continue
+            if step_id is not None and record.get("step_id") != step_id:
+                continue
+            yield record
+
+
 # ----------------------------------------------------------------------
 # Example usage
 # ----------------------------------------------------------------------

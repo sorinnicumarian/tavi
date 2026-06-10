@@ -28,6 +28,28 @@ The trace format is aligned with the LTL rule templates. End-to-end checking (lo
 
 ### Changelog
 
+#### v0.6 (2026-06-10)
+
+**Live step iterator (`tavi/trace_translator/main.py`):**
+- Added `get_steps(trace_file, task_id, step_id)` — yields translated step dicts from a JSONL trace file. Skips `task_start`/`task_end`/`task_separator` records. Both filters are optional.
+
+**Runtime interrupt hook (`tavi/traces/trace_collector.py`, `tavi/simulation/planner/utils.py`):**
+- `TraceCollector` now accepts `on_step: Callable[[dict], bool] | None` at construction time.
+- After each step is written to JSONL, the callback is called with the translated `facts` dict (same `predicate__arg: True` format as the translated JSONL). Return `False` to stop execution, `True` to continue.
+- `capture_step()` returns `bool` propagating the callback result.
+- `execute_low_level_plan` breaks the step loop when `capture_step` returns `False` and logs `[checker] rule violation detected — stopping task`.
+- Removed dead first copy of `execute_low_level_plan` that had the old `trace_output_path` signature.
+
+Usage:
+```python
+def my_checker(facts: dict) -> bool:
+    if facts.get("holding__knife_1") and facts.get("toggled_on__stoveburner_1"):
+        return False  # violation — stop
+    return True
+
+collector = TraceCollector(output_path="traces/task_1.jsonl", task_id=1, on_step=my_checker)
+```
+
 #### v0.5 (2026-06-03)
 
 **exec predicate format aligned with LTL rule templates:**
@@ -137,7 +159,7 @@ All predicates are implemented in `tavi/traces/state_processor.py`.
 
 #### Semantic safety categories (hardcoded vocabulary, not in AI2-THOR)
 
-These are the bridge to Bogdan's rule vocabulary. AI2-THOR has no concept of "flammable" or "sharp" — these are assigned by object type in `state_processor.py`.
+These bridge the trace predicates to the LTL rule vocabulary. AI2-THOR has no concept of "flammable" or "sharp" — these are assigned by object type in `state_processor.py`.
 
 | Predicate | Object types | Meaning |
 |---|---|---|

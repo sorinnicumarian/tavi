@@ -134,71 +134,6 @@ Your low-level plan, remember to follow the standard format:
 def execute_low_level_plan(
     low_level_plan: list,
     planner,
-    trace_output_path=None
-):
-
-    num_success_steps = 0
-
-    planner.restore_scene()
-
-    trace_collector = None
-
-    if trace_output_path is not None:
-
-        trace_collector = TraceCollector(
-            planner.env,
-            trace_output_path
-        )
-
-        trace_collector.reset()
-
-    for plan in low_level_plan:
-
-        try:
-
-            pre_metadata = copy.deepcopy(
-                planner.env.last_event.metadata
-            )
-
-            ret_dict = planner.llm_skill_interact(plan)
-
-            post_metadata = copy.deepcopy(
-                planner.env.last_event.metadata
-            )
-
-            print(ret_dict)
-            print('-' * 50)
-
-            if trace_collector is not None:
-
-                trace_collector.capture_step(
-                    action_name=plan,
-                    pre_metadata=pre_metadata,
-                    post_metadata=post_metadata,
-                    success=ret_dict["success"],
-                    error=ret_dict.get("errorMessage")
-                )
-
-            if ret_dict["success"]:
-                num_success_steps += 1
-
-        except Exception as e:
-
-            traceback.print_exc()
-
-    if len(low_level_plan) == 0:
-        sr_step = 0
-    else:
-        sr_step = num_success_steps / len(low_level_plan)
-
-    return (
-        planner.env.last_event.metadata,
-        sr_step
-    )
-
-def execute_low_level_plan(
-    low_level_plan: list,
-    planner,
     trace_collector=None
 ):
 
@@ -220,10 +155,11 @@ def execute_low_level_plan(
                 planner.env.last_event.metadata
             )
 
+            should_continue = True
             if trace_collector is not None:
 
                 obj_id = ret_dict.get("objectId")
-                trace_collector.capture_step(
+                should_continue = trace_collector.capture_step(
                     action_name=plan,
                     action_args={"objectId": obj_id} if obj_id else {},
                     pre_metadata=pre_metadata,
@@ -237,6 +173,10 @@ def execute_low_level_plan(
 
             if ret_dict["success"]:
                 num_success_steps += 1
+
+            if not should_continue:
+                print("  [checker] rule violation detected — stopping task")
+                break
 
         except Exception as e:
 

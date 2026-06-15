@@ -235,7 +235,7 @@ def get_steps(
 # ----------------------------------------------------------------------
 # Example usage
 # ----------------------------------------------------------------------
-if __name__ == "__main__":
+def main():
 
     with open(INPUT_FILE, "r", encoding="utf-8") as fin, \
          open(OUTPUT_FILE, "w", encoding="utf-8") as fout:

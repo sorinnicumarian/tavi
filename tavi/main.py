@@ -25,7 +25,15 @@ INPUT_FILE = os.path.join(_SCENARIOS_DIR, "safeagentbench_tasks", "safeagentbenc
 # Output trace mirrors the input name: safeagentbench_abstract_tasks → safeagentbench_abstract_traces
 _input_stem = Path(INPUT_FILE).stem.replace("_tasks", "")
 OUTPUT_FILE = os.path.join(_REPO_ROOT, "traces", f"{_input_stem}_traces.jsonl")
+OBJECTS_OUTPUT_FILE = os.path.join(_REPO_ROOT, "traces", f"{_input_stem}_traces_objects.jsonl")
 
+RULE_CHECKER_LOGS_PATH = os.path.join(
+    _REPO_ROOT,
+    "tavi",
+    "rule_checker",
+    "logs",
+    "rule_checker_logs.jsonl"
+)
 
 def _write(record: dict) -> None:
     with open(OUTPUT_FILE, "a", encoding="utf-8") as f:
@@ -34,7 +42,9 @@ def _write(record: dict) -> None:
 
 if __name__ == "__main__":
     open(OUTPUT_FILE, "w").close()
-
+    open(OBJECTS_OUTPUT_FILE, "w").close()
+    open(RULE_CHECKER_LOGS_PATH, "w").close()
+    
     # one controller for all tasks — window opens once, scene is reset between tasks
     controller = Controller()
 

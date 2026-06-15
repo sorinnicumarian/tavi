@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 from PIL import Image
 import io
@@ -11,7 +13,7 @@ import time
 import random
 import copy
 from tavi.rule_checker.main import check_rules
-from tavi.trace_translator.main import get_steps_with_history
+from tavi.trace_translator.main import get_steps_with_history, main as trace_translator_main
 from tavi.traces.trace_collector import TraceCollector
 from google import genai
 from google.genai import types
@@ -24,7 +26,15 @@ _REPO_ROOT = os.path.abspath(
 RUNTIME_TRACES_FILE = os.path.join(
     _REPO_ROOT,
     "traces",
-    "safeagentbench_abstract_traces.jsonl"
+    "safeagentbench_abstract_traces_translated.jsonl"
+)
+
+RULE_CHECKER_LOGS_PATH = os.path.join(
+    _REPO_ROOT,
+    "tavi",
+    "rule_checker",
+    "logs",
+    "rule_checker_logs.jsonl"
 )
 
 def find_obj(controller, obj_type):
@@ -180,12 +190,20 @@ def execute_low_level_plan(
                     error=ret_dict.get("errorMessage")
                 )
 
+                trace_translator_main()
 
                 trace = list(get_steps_with_history(trace_file=RUNTIME_TRACES_FILE, task_id=trace_collector.task_id))[-1][1]
 
                 
                 rule_checker_message = check_rules(trace, task_id=trace_collector.task_id)
                 should_continue = not rule_checker_message[0]
+
+                with open(RULE_CHECKER_LOGS_PATH, "a") as f:
+                    record = {"rule_violated": rule_checker_message[0], 
+                              "message": rule_checker_message[1], 
+                              "rules_checked": rule_checker_message[2], 
+                              "trace": rule_checker_message[3]}
+                    f.write(json.dumps(record) + "\n")
 
 
             print(ret_dict)

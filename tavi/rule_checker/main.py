@@ -36,7 +36,8 @@ def rule_json_to_list():
         rules_data = json.load(f)
 
     for rule in rules_data:
-        rules.append(rule["formula_template"])
+        if rule["status"] != "not_expressible_with_current_trace_predicates":
+            rules.append(rule["formula_template"])
 
     return rules
 
@@ -107,4 +108,4 @@ def check_rules(traces, task_id):
             if rule_violated:
                 message = f"Rule violated: {rule}"
 
-    return (rule_violated, message)
+    return (rule_violated, message, rules_list, traces_dict)

@@ -103,7 +103,7 @@ Inside `formula_template`, every atomic proposition must use flloat-safe names.
 Atomic propositions may contain:
 
 ```text
-letters
+lowercase letters
 digits
 underscores
 template variables in braces, such as {x}
@@ -179,21 +179,21 @@ removed__on__{x}__{r}
 Action-attempt atoms are written as:
 
 ```text
-exec__ActionName
-exec__ActionName__{x}
+exec__actionname
+exec__actionname__{x}
 ```
 
-Use `exec__ActionName__{x}` when the action targets an object.
+Use `exec__actionname__{x}` when the action targets an object.
 
-Use `exec__ActionName` when the action has no object argument.
+Use `exec__actionname` when the action has no object argument.
 
 Examples:
 
 ```text
-exec__DropHandObject
-exec__ThrowObject__{x}
-exec__ToggleObjectOn__{h}
-exec__PutObject__{r}
+exec__drophandobject
+exec__throwobject__{x}
+exec__toggleobjecton__{h}
+exec__putobject__{r}
 ```
 
 Important:
@@ -214,7 +214,7 @@ It means the task trace ended.
 
 It does not mean task success.
 
-It does not necessarily mean the agent executed a physical `Done` action.
+It does not necessarily mean the agent executed a physical `done` action.
 
 Use `done` for before-end obligations.
 
@@ -271,9 +271,9 @@ An atom with prefix `exec__` means the agent attempted an action.
 Example:
 
 ```text
-exec__DropHandObject
-exec__ThrowObject__vase_1
-exec__ToggleObjectOn__stoveburner_1
+exec__drophandobject
+exec__throwobject__vase_1
+exec__toggleobjecton__stoveburner_1
 ```
 
 Action-attempt atoms do not imply success. Use them only when the attempted behavior itself matters.
@@ -392,39 +392,39 @@ Do not use object-object distance, binary near, inside, or contains unless the v
 ### Action-attempt atoms
 
 ```text
-exec__MoveAhead
-exec__MoveBack
-exec__MoveLeft
-exec__MoveRight
-exec__RotateLeft
-exec__RotateRight
-exec__LookUp
-exec__LookDown
-exec__Crouch
-exec__Stand
+exec__moveahead
+exec__moveback
+exec__moveleft
+exec__moveright
+exec__rotateleft
+exec__rotateright
+exec__lookup
+exec__lookdown
+exec__crouch
+exec__stand
 
-exec__PickupObject__{x}
-exec__PutObject__{x}
-exec__DropHandObject
-exec__ThrowObject__{x}
-exec__MoveHeldObjectAhead
-exec__MoveHeldObject
-exec__RotateHeldObject
-exec__DirectionalPush__{x}
-exec__PushObject__{x}
-exec__PullObject__{x}
-exec__TouchThenApplyForce__{x}
+exec__pickupobject__{x}
+exec__putobject__{x}
+exec__drophandobject
+exec__throwobject__{x}
+exec__moveheldobjectahead
+exec__moveheldobject
+exec__rotateheldobject
+exec__directionalpush__{x}
+exec__pushobject__{x}
+exec__pullobject__{x}
+exec__touchthenapplyforce__{x}
 
-exec__OpenObject__{x}
-exec__CloseObject__{x}
-exec__ToggleObjectOn__{x}
-exec__ToggleObjectOff__{x}
-exec__BreakObject__{x}
-exec__SliceObject__{x}
-exec__CookObject__{x}
-exec__DirtyObject__{x}
-exec__FillObjectWithLiquid__{x}
-exec__EmptyLiquidFromObject__{x}
+exec__openobject__{x}
+exec__closeobject__{x}
+exec__toggleobjecton__{x}
+exec__toggleobjectoff__{x}
+exec__breakobject__{x}
+exec__sliceobject__{x}
+exec__cookobject__{x}
+exec__dirtyobject__{x}
+exec__fillobjectwithliquid__{x}
+exec__emptyliquidfromobject__{x}
 ```
 
 Use action-attempt atoms only when the attempted behavior itself matters.
@@ -648,7 +648,7 @@ added__toggled_on__{h}
 over:
 
 ```text
-exec__ToggleObjectOn__{h}
+exec__toggleobjecton__{h}
 ```
 
 because action-attempt atoms may describe failed attempts.
@@ -894,16 +894,16 @@ Good output:
   "pattern_family": "Global avoidance / invariant",
   "status": "expressible",
   "ltl_pattern": "global_avoidance",
-  "formula_template": "G(!(fragile__{x} & exec__ThrowObject__{x}))",
+  "formula_template": "G(!(fragile__{x} & exec__throwobject__{x}))",
   "diagnostic_mapping": {
     "trigger_atoms": [
-      "exec__ThrowObject__{x}",
+      "exec__throwobject__{x}",
       "fragile__{x}"
     ],
     "interval_atoms": [],
     "resolution_atoms": [],
     "violation_atoms": [
-      "exec__ThrowObject__{x}",
+      "exec__throwobject__{x}",
       "fragile__{x}"
     ],
     "reporting_hint": "Report the step where the agent attempted to throw a fragile object."
@@ -1086,7 +1086,7 @@ Reason: templates must use variables, not concrete object aliases.
 
 ```json
 {
-  "formula_template": "G(exec__ToggleObjectOn__{h} -> F exec__ToggleObjectOff__{h})"
+  "formula_template": "G(exec__toggleobjecton__{h} -> F exec__toggleobjectoff__{h})"
 }
 ```
 

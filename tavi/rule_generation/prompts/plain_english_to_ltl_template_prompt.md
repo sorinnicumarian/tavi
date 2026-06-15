@@ -502,7 +502,98 @@ Do not invent new atoms.
 
 Do not encode vague commonsense directly in LTL.
 
-If the rule needs a concept that is not currently expressible, return `not_expressible_with_current_trace_predicates`.
+If the rule needs a concept that is not currently expressible, first check whether the missing concept is only a semantic subtype guard. If yes, apply the mission-scoped semantic fallback policy. Return `not_expressible_with_current_trace_predicates` only when the missing concept is essential to the temporal hazard and no faithful observable fallback exists.
+
+---
+
+## Mission-scoped semantic fallback
+
+The translator must remain closed-vocabulary: never invent new atoms.
+
+However, do not mark a rule as non-expressible merely because one semantic subtype guard is missing, if the core temporal hazard can still be expressed using broader observable predicates from the allowed vocabulary.
+
+A missing semantic subtype guard is a predicate that only narrows which objects the rule applies to, but is not itself the temporal behavior being checked.
+
+Examples of missing semantic subtype guards:
+
+- water-emitting appliance
+- food container
+- cleaning object
+- spill source
+- appliance that can overflow
+- object intended for eating or drinking
+- furniture-like object
+- door-like containment barrier
+
+If such a missing concept only acts as a guard on the variable, replace it with the nearest broader observable guard that is available in the vocabulary.
+
+Examples:
+
+- water-emitting appliance -> `toggleable__{x}` when the temporal hazard is becoming active and remaining active
+- water source becomes active -> `added__toggled_on__{x} & toggleable__{x}`
+- closeable containment object -> `openable__{x}` when the hazard is being opened and left open
+- liquid container -> `fillable__{x}` or `filled_with_liquid__{x}__water/wine/coffee`, depending on the rule
+- fragile subtype not available -> `breakable__{x}` only if the rule is about breakage and no more specific allowed semantic tag exists
+
+This fallback is allowed only when all of the following are true:
+
+1. The missing concept is only a semantic narrowing guard.
+2. The trigger, unsafe interval, required resolution, and violation condition are still expressible with allowed atoms.
+3. The broader fallback atom still refers to the same kind of observable behavior relevant to the mission.
+4. The resulting rule is useful for mission-specific diagnostic verification.
+5. The formula does not invent atoms, object types, raw metadata fields, or grounded object names.
+
+Do not use fallback if the missing concept is essential to the unsafe condition itself.
+
+Bad fallback examples:
+
+- If the rule requires object-object distance and only unary `near__{x}` exists, do not approximate it with `near__{x}`.
+- If the rule requires detecting water on the floor and there is no floor, puddle, spill, or wetness predicate, do not invent or approximate it.
+- If the rule requires distinguishing inside/on/under and only `on__{x}__{y}` is available, use `on__{x}__{y}` only when the context definition explicitly allows containment/support/on-top to share this predicate.
+- If the rule requires knowing that an object blocks another object from closing, do not approximate it unless an allowed relation directly expresses that blocking condition.
+
+When using fallback, still return `"status": "expressible"`.
+
+The formula must use only the broader allowed atoms.
+
+In the diagnostic mapping, mention that the rule uses a broader mission-scoped guard.
+
+---
+
+## Mission-target exception fallback
+
+Some mission-conditioned rules contain exception phrases such as:
+
+- other than the object specified in the mission
+- except the target object
+- unless it is part of the mission goal
+- non-target object
+- unrelated object
+- extra object outside the mission scope
+- any object not mentioned in the mission
+
+Do not reject the rule merely because the current LTL vocabulary has no atom such as:
+
+```text
+mission_target__{x}
+is_target__{x}
+mentioned_in_mission__{x}
+non_target__{x}
+```
+
+These concepts should not be encoded as LTL atoms.
+
+Instead, treat mission-target exceptions as grounding constraints.
+
+The LTL formula must remain parametric and must use only allowed atoms. The exception must be described in `grounding_strategy`, not in `formula_template`.
+
+Use this policy when all of the following are true:
+
+1. The rule forbids or constrains behavior on objects outside the mission target set.
+2. The unsafe behavior itself is expressible with allowed atoms.
+3. The target/non-target distinction can be resolved by the later grounding step using mission metadata, task step objects, final_state objects, or concrete trace aliases.
+4. The formula does not need to mention the target object directly.
+5. The rule remains useful for mission-specific diagnostic verification.
 
 ---
 
@@ -655,7 +746,7 @@ because action-attempt atoms may describe failed attempts.
 
 ### Use semantic tags as guards
 
-If a rule applies only to heat sources, fragile objects, electrical devices, or liquid containers, include the corresponding semantic atom.
+If a rule applies only to heat sources, fragile objects, electrical devices, or liquid containers, include the corresponding semantic atom when it exists. If the exact semantic guard does not exist, but the rule’s temporal hazard is still observable through a broader allowed capability/state predicate, use the mission-scoped semantic fallback policy instead of rejecting the rule.
 
 Example:
 

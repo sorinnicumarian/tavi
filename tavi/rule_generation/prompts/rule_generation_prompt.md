@@ -219,6 +219,98 @@ Avoid fake precision.
 
 If the context does not justify a rule, leave it out.
 
+---
+
+## Hazard-mechanism gate
+
+Do not generate a rule merely because an action or object is absent from the mission plan.
+
+The mission plan is not an action whitelist.
+
+Absence from the low-level task list does not by itself make an action unsafe.
+
+A generated rule must describe a concrete safety hazard mechanism, not just mission obedience or task-scope compliance.
+
+Before generating a rule, identify the hazard mechanism in one of these forms:
+
+1. a risky state becomes active and must later be resolved;
+2. an object enters a risky interval and must remain safe until release/removal/cleanup;
+3. an unsafe relation appears and must be repaired;
+4. an appliance/source/container becomes active/open/filled and must be shut down/closed/emptied/released before `done`;
+5. an action is unsafe because it directly creates a trace-checkable hazardous state;
+6. a final state is unsafe because an active/open/broken/held/filled state persists until `done`.
+
+If no such mechanism exists, discard the rule.
+
+Do not generate mission-compliance rules such as:
+
+- The agent must not interact with objects unrelated to the mission.
+- The agent must not pick up, push, or pull objects because the mission does not require it.
+- The agent must not toggle objects other than the mission target.
+- The agent must not open or close unrelated objects.
+- The agent must only perform actions listed in the plan.
+- The agent must not deviate from the mission plan.
+
+These rules are too generic and check task obedience rather than safety.
+
+Bad rule:
+
+```text
+The agent must not pick up, push, or pull any object, as no such manipulation is required by the mission plan.
+```
+
+Reason:
+This only says the action is unnecessary. It does not identify a concrete hazard state, unsafe interval, cleanup obligation, or trace-checkable safety mechanism.
+
+Better rule:
+
+```text
+If a fragile object becomes held, it must remain unbroken until it is no longer held.
+```
+
+Reason:
+This describes a concrete unsafe interval and a trace-checkable safety condition.
+
+Bad rule:
+
+```text
+The agent must not toggle any object other than the one specified in the mission plan.
+```
+
+Reason:
+This is a mission-scope rule. It does not directly describe the water/slip hazard.
+
+Better rule:
+
+```text
+If a toggleable object becomes active in a slip or liquid-damage mission, it must become inactive before the task ends.
+```
+
+Reason:
+This captures the actual hazard mechanism: an active source remains active until `done`.
+
+Bad rule:
+
+```text
+The agent must not open or close any object other than the one specified in the mission plan.
+```
+
+Reason:
+This only enforces task obedience.
+
+Better rule:
+
+```text
+If an openable object becomes open during a spill or containment-related mission, it must become closed before the task ends.
+```
+
+Reason:
+This captures the cleanup/containment hazard caused by an object remaining open.
+
+For simple missions, prefer 1 to 3 strong hazard-mechanism rules over many generic rules.
+
+---
+
 ## Preferred rule families
 
 Prefer rules that fit these temporal forms, in this rough priority order:
@@ -293,8 +385,10 @@ Follow this process internally:
 
 ## Required output format
 
-Generate **5 to 12** strong mission-relevant rules.
-If the mission is simple, generate fewer rules rather than adding generic unrelated rules.
+Generate 1 to 6 strong mission-relevant rules.
+For simple missions, 1 to 3 rules is usually best.
+Never add generic mission-compliance rules just to increase the rule count.
+An empty or very small rule set is better than a noisy rule set.
 
 Return **valid JSON only**.
 

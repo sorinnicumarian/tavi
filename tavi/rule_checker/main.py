@@ -1,9 +1,11 @@
 from flloat.parser.ltlf import LTLfParser
 import os
 import json
+import re
+from itertools import product
 
 _REPO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..")
+    os.path.join(os.path.dirname(__file__), "..")
 )
 
 RULES_INPUT_FILE = os.path.join(
@@ -20,6 +22,13 @@ TRACES_INPUT_FILE = os.path.join(
     "safeagentbench_abstract_traces_translated.jsonl"
 )
 
+OBJECTS_INPUT_FILE = os.path.join(
+    _REPO_ROOT,
+    "..",
+    "traces",
+    "safeagentbench_abstract_traces_objects.jsonl"
+)
+
 def rule_json_to_list():
     rules = []
     
@@ -31,46 +40,71 @@ def rule_json_to_list():
 
     return rules
 
+def get_task_object_ids(task_id):
+    object_ids = set()
 
-def traces_jsonl_to_dict(jsonl_file):
+    with open(OBJECTS_INPUT_FILE, "r") as f:
+        for line in f:
+            record = json.loads(line)
+
+            if record["task_id"] == task_id:
+                object_ids.update(record["object_ids"])
+
+    return sorted(object_ids)
+
+def prepare_traces_for_checking(traces):
     result = []
     action_key = ""
-    action_value
-    with open(jsonl_file, "r", encoding="utf-8") as f:
-        for line in f:
-            obj = json.loads(line)
-            result.append(obj["facts"])
+    action_value = ""
+
+    for line in traces:
+            result.append(line["facts"])
             
-            for key in obj:
+            for key in line:
                 if key.startswith("exec"):
                     action_key = key
-                    action_value = obj[action_key]
+                    action_value = line[action_key]
 
-        if result:
-            result.pop()
+    if result:
+        result.pop()
 
-        result.append({action_key: action_value})
+    result.append({action_key: action_value})     
 
     return result
 
+def instantiate_rules(rule_templates, task_id):
+    instantiated = []
+    object_ids = get_task_object_ids(task_id)
 
+    for template in rule_templates:
+        vars_ = sorted(set(re.findall(r"\{(\w+)\}", template)))
 
-def check_rules():
+        if not vars_:
+            instantiated.append(template)
+            continue
+
+        for values in product(object_ids, repeat=len(vars_)):
+            mapping = dict(zip(vars_, values))
+            instantiated.append(template.format(**mapping))
+
+    return instantiated
+
+def check_rules(traces, task_id):
+
+    traces_dict = prepare_traces_for_checking(traces)
+    rules_list = instantiate_rules(rule_json_to_list(), task_id)
+    
     # parse the formula
     parser = LTLfParser()
-    formula = "G(a -> F(b))"
-    parsed_formula = parser(formula)
 
-    # evaluate over finite traces
-    assert not parsed_formula.truth(t2, 0)
+    rule_violated = False
+    message = "All rules are satisfied."
 
-    # from LTLf formula to DFA
-    dfa = parsed_formula.to_automaton()
-    assert dfa.accepts(t1)
-    assert not dfa.accepts(t2)
+    for rule in rules_list:
+            parsed_formula = parser(rule)
+            rule_violated = not parsed_formula.truth(traces_dict)
 
-    print("All tests passed successfully.")
+            if rule_violated:
+                message = f"Rule violated: {rule}"
 
-
-result = traces_jsonl_to_dict(TRACES_INPUT_FILE)
-print(result)
+    return (rule_violated, message)

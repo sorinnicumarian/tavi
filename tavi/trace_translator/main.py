@@ -160,6 +160,45 @@ def convert_json(old_data: dict) -> dict:
     new_data["facts"] = facts_dict
 
     return new_data
+
+
+def get_steps_with_history(
+    trace_file=OUTPUT_FILE,
+    task_id=None,
+):
+    """
+    Yields (step, history) tuples.
+
+    history contains all previous steps for the same task,
+    including the current step.
+    """
+
+    histories = {}
+
+    with open(trace_file, "r", encoding="utf-8") as f:
+        for line in f:
+            record = json.loads(line)
+
+            if record.get("record_type") in (
+                "task_start",
+                "task_end",
+                "task_separator",
+            ):
+                continue
+
+            current_task = record.get("task_id")
+
+            if task_id is not None and current_task != task_id:
+                continue
+
+            if current_task not in histories:
+                histories[current_task] = []
+
+            histories[current_task].append(record)
+
+            # Return current step and all previous steps
+            yield record, histories[current_task].copy()
+            
 def get_steps(
     trace_file: str = OUTPUT_FILE,
     task_id: int | None = None,

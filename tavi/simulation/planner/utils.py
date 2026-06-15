@@ -10,10 +10,22 @@ import logging
 import time
 import random
 import copy
+from tavi.rule_checker.main import check_rules
+from tavi.trace_translator.main import get_steps_with_history
 from tavi.traces.trace_collector import TraceCollector
 from google import genai
 from google.genai import types
 import os
+
+_REPO_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+)
+
+RUNTIME_TRACES_FILE = os.path.join(
+    _REPO_ROOT,
+    "traces",
+    "safeagentbench_abstract_traces.jsonl"
+)
 
 def find_obj(controller, obj_type):
     objects = controller.last_event.metadata["objects"]
@@ -168,6 +180,14 @@ def execute_low_level_plan(
                     error=ret_dict.get("errorMessage")
                 )
 
+
+                trace = list(get_steps_with_history(trace_file=RUNTIME_TRACES_FILE, task_id=trace_collector.task_id))[-1][1]
+
+                
+                rule_checker_message = check_rules(trace, task_id=trace_collector.task_id)
+                should_continue = not rule_checker_message[0]
+
+
             print(ret_dict)
             print('-' * 50)
 
@@ -175,7 +195,7 @@ def execute_low_level_plan(
                 num_success_steps += 1
 
             if not should_continue:
-                print("  [checker] rule violation detected — stopping task")
+                print(f"{rule_checker_message[1]} rule violation detected — stopping task")
                 break
 
         except Exception as e:

@@ -46,6 +46,11 @@ class TraceCollector:
     ):
         self.output_path = Path(output_path)
         self.output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        self.objects_output_path = self.output_path.with_name(
+            self.output_path.stem + "_objects.jsonl"
+        )
+
         self.task_id = task_id
         self.scene_name = scene_name
         self.instruction = instruction
@@ -148,6 +153,15 @@ class TraceCollector:
 
         with self.output_path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(record) + "\n")
+
+        objects_record = {
+            "task_id": self.task_id,
+            "step_id": self.step_id,
+            "object_ids": list(self._id_map.values())
+        }
+        
+        with self.objects_output_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(objects_record) + "\n")
 
         logger.debug("step %03d | %s | %s", self.step_id, action_name, "OK" if success else error)
         print(f"  step {self.step_id:03d}  {action_name:30s} → {'OK' if success else f'FAILED: {error}'}")

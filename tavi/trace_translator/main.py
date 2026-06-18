@@ -151,12 +151,7 @@ def convert_json(old_data: dict) -> dict:
             else:
                 new_data[f"exec__{action_part}"] = True
 
-    # ==========================================================
-    # Add terminal marker
-    # ==========================================================
-    facts_dict["done"] = True
-
-    # Replace facts list with facts dictionary
+    # Replace facts list with facts dictionary (done marker set by caller)
     new_data["facts"] = facts_dict
 
     return new_data
@@ -237,12 +232,28 @@ def get_steps(
 # ----------------------------------------------------------------------
 def main():
 
-    with open(INPUT_FILE, "r", encoding="utf-8") as fin, \
-         open(OUTPUT_FILE, "w", encoding="utf-8") as fout:
+    with open(INPUT_FILE, "r", encoding="utf-8") as fin:
+        raw_lines = [json.loads(line) for line in fin]
 
-        for line in fin:
-            old_data = json.loads(line)
+    # Find the last step_id per task so done=True is set only there
+    last_step: dict[int, int] = {}
+    for record in raw_lines:
+        if record.get("record_type") in ("task_start", "task_end", "task_separator"):
+            continue
+        tid = record.get("task_id")
+        sid = record.get("step_id", -1)
+        if tid is not None and sid > last_step.get(tid, -1):
+            last_step[tid] = sid
 
-            new_data = convert_json(old_data)
-
+    with open(OUTPUT_FILE, "w", encoding="utf-8") as fout:
+        for record in raw_lines:
+            new_data = convert_json(record)
+            tid = record.get("task_id")
+            sid = record.get("step_id")
+            is_last = (
+                tid is not None
+                and sid is not None
+                and last_step.get(tid) == sid
+            )
+            new_data["facts"]["done"] = is_last
             fout.write(json.dumps(new_data) + "\n")

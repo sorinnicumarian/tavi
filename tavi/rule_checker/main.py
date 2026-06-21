@@ -107,5 +107,6 @@ def check_rules(traces, task_id):
 
             if rule_violated:
                 message = f"Rule violated: {rule}"
+                break
 
     return (rule_violated, message, rules_list, traces_dict)

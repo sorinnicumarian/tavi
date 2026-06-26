@@ -4,12 +4,11 @@ import json
 import re
 from itertools import product
 
-_REPO_ROOT = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..")
-)
+_TAVI_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+_REPO_ROOT = os.path.abspath(os.path.join(_TAVI_ROOT, ".."))
 
 RULES_INPUT_FILE = os.path.join(
-    _REPO_ROOT,
+    _TAVI_ROOT,
     "rule_generation",
     "outputs",
     "rules_ltl_templates.json"
@@ -17,14 +16,12 @@ RULES_INPUT_FILE = os.path.join(
 
 TRACES_INPUT_FILE = os.path.join(
     _REPO_ROOT,
-    "..",
     "traces",
     "safeagentbench_abstract_traces_translated.jsonl"
 )
 
 OBJECTS_INPUT_FILE = os.path.join(
     _REPO_ROOT,
-    "..",
     "traces",
     "safeagentbench_abstract_traces_objects.jsonl"
 )
@@ -42,38 +39,66 @@ def rule_json_to_list():
     return rules
 
 def get_task_object_ids(task_id):
-    object_ids = set()
+    """
+    Returns sorted list of object SIDs for a task.
+    Reads from the objects sidecar file if available, otherwise extracts
+    SIDs from predicate keys in the translated trace.
+    """
+    if os.path.exists(OBJECTS_INPUT_FILE):
+        object_ids = set()
+        with open(OBJECTS_INPUT_FILE, "r") as f:
+            for line in f:
+                record = json.loads(line)
+                if record["task_id"] == task_id:
+                    object_ids.update(record["object_ids"])
+        return sorted(object_ids)
 
-    with open(OBJECTS_INPUT_FILE, "r") as f:
+    # Fallback: extract object SIDs from fact keys in the translated trace.
+    # SIDs look like "knife_1", "candle_1" — a word followed by underscore and digits.
+    # We extract the last token from keys like "heat_source__candle_1", "on__cloth_1__shelf_1".
+    object_ids = set()
+    _sid_re = re.compile(r"[a-z][a-z]*_\d+$")
+    with open(TRACES_INPUT_FILE, "r") as f:
         for line in f:
             record = json.loads(line)
-
-            if record["task_id"] == task_id:
-                object_ids.update(record["object_ids"])
-
+            if record.get("record_type") in ("task_start", "task_end", "task_separator"):
+                continue
+            if record.get("task_id") != task_id:
+                continue
+            for key in record.get("facts", {}):
+                if key == "done":
+                    continue
+                parts = key.split("__")
+                for part in parts[1:]:  # skip the predicate name (first segment)
+                    if _sid_re.fullmatch(part):
+                        object_ids.add(part)
     return sorted(object_ids)
 
 def prepare_traces_for_checking(traces):
+    """
+    Convert a list of translated step dicts into a list of flat bool dicts
+    for flloat. Each step dict gets its exec__ key (if any) merged into facts.
+    """
     result = []
-    action_key = ""
-    action_value = ""
 
-    for line in traces:
-            result.append(line["facts"])
-            
-            for key in line:
-                if key.startswith("exec"):
-                    action_key = key
-                    action_value = line[action_key]
+    for record in traces:
+        step_facts = dict(record["facts"])
 
-    if result:
-        result.pop()
+        # merge exec key into facts so flloat can see it
+        for key, value in record.items():
+            if key.startswith("exec__"):
+                step_facts[key] = value
 
-    result.append({action_key: action_value})     
+        result.append(step_facts)
 
     return result
 
 def instantiate_rules(rule_templates, task_id):
+    """
+    Instantiate parametric rule templates by substituting concrete object IDs.
+    Only substitutes object IDs that actually appear in the trace for this task,
+    avoiding the combinatorial explosion of substituting all objects for all vars.
+    """
     instantiated = []
     object_ids = get_task_object_ids(task_id)
 
@@ -84,6 +109,8 @@ def instantiate_rules(rule_templates, task_id):
             instantiated.append(template)
             continue
 
+        # Each variable independently ranges over all object IDs
+        # (vars may have different domains but we ground conservatively)
         for values in product(object_ids, repeat=len(vars_)):
             mapping = dict(zip(vars_, values))
             instantiated.append(template.format(**mapping))

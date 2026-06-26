@@ -27,14 +27,15 @@ OBJECTS_INPUT_FILE = os.path.join(
 )
 
 def rule_json_to_list():
+    """Returns list of (rule_id, title, formula_template) for expressible rules."""
     rules = []
-    
+
     with open(RULES_INPUT_FILE, "r") as f:
         rules_data = json.load(f)
 
     for rule in rules_data:
         if rule["status"] != "not_expressible_with_current_trace_predicates":
-            rules.append(rule["formula_template"])
+            rules.append((rule["rule_id"], rule["title"], rule["formula_template"]))
 
     return rules
 
@@ -96,44 +97,63 @@ def prepare_traces_for_checking(traces):
 def instantiate_rules(rule_templates, task_id):
     """
     Instantiate parametric rule templates by substituting concrete object IDs.
-    Only substitutes object IDs that actually appear in the trace for this task,
-    avoiding the combinatorial explosion of substituting all objects for all vars.
+    Returns list of (rule_id, title, grounded_formula).
     """
     instantiated = []
     object_ids = get_task_object_ids(task_id)
 
-    for template in rule_templates:
+    for rule_id, title, template in rule_templates:
         vars_ = sorted(set(re.findall(r"\{(\w+)\}", template)))
 
         if not vars_:
-            instantiated.append(template)
+            instantiated.append((rule_id, title, template))
             continue
 
-        # Each variable independently ranges over all object IDs
-        # (vars may have different domains but we ground conservatively)
         for values in product(object_ids, repeat=len(vars_)):
             mapping = dict(zip(vars_, values))
-            instantiated.append(template.format(**mapping))
+            instantiated.append((rule_id, title, template.format(**mapping)))
 
     return instantiated
 
-def check_rules(traces, task_id):
+def find_first_violating_step(traces_dict, parsed_formula):
+    """
+    Binary-search for the earliest step prefix at which the formula is violated.
+    Returns the 0-based step index, or None if the full trace satisfies the formula.
+    """
+    for i in range(1, len(traces_dict) + 1):
+        if not parsed_formula.truth(traces_dict[:i]):
+            return i - 1
+    return None
 
+def check_rules(traces, task_id):
     traces_dict = prepare_traces_for_checking(traces)
     rules_list = instantiate_rules(rule_json_to_list(), task_id)
-    
-    # parse the formula
+
     parser = LTLfParser()
 
-    rule_violated = False
-    message = "All rules are satisfied."
+    violations = []
+    for rule_id, title, formula in rules_list:
+        parsed = parser(formula)
+        if not parsed.truth(traces_dict):
+            step = find_first_violating_step(traces_dict, parsed)
+            action = traces[step]["action"]["name"] if step is not None and step < len(traces) else "unknown"
+            violations.append({
+                "rule_id": rule_id,
+                "title": title,
+                "formula": formula,
+                "first_violating_step": step,
+                "action_at_step": action,
+            })
 
-    for rule in rules_list:
-            parsed_formula = parser(rule)
-            rule_violated = not parsed_formula.truth(traces_dict)
+    violated = len(violations) > 0
+    if violated:
+        v = violations[0]
+        message = (
+            f"[{v['rule_id']}] {v['title']} — "
+            f"step {v['first_violating_step']} ({v['action_at_step']}) — "
+            f"{v['formula']}"
+        )
+    else:
+        message = "All rules are satisfied."
 
-            if rule_violated:
-                message = f"Rule violated: {rule}"
-                break
-
-    return (rule_violated, message, rules_list, traces_dict)
+    return (violated, message, violations, traces_dict)

@@ -15,18 +15,28 @@ An agent moves around a simulated home and performs tasks — pick up a knife, t
 
 Existing tools like AgentSpec only check one action at a time. They can't answer "did the agent ever hold a knife while the stove was on?" — that requires reasoning over a full sequence of steps. TAVI is being built to do that.
 
-### Current state (v0.5)
+### Current state (v0.7)
 
-TAVI covers trace collection, autonomous agent execution, SafeAgentBench integration, LTL rule generation, and trace translation:
+End-to-end pipeline is working on the `LTL-runtime-checking` branch:
 
 - **`tavi/main.py`** — single entry point. Runs SafeAgentBench long_horizon tasks through Gemini Pro VLM planner and records traces to `traces/`.
-- **`rule_generation/`** — LLM pipeline (Gemini 2.5 Pro) that generates, evaluates, and iteratively refines plain-English safety rules, then translates them to parametric LTL templates.
-- **`tavi/trace_translator/main.py`** — converts JSONL traces to `flloat`-compatible boolean dicts (`exec__ToggleObjectOn__candle_1: true`), ready for LTL checking.
+- **`rule_generation/`** — LLM pipeline (Gemini 2.5 Pro) that generates, evaluates, and iteratively refines plain-English safety rules, then translates them to parametric LTL templates in `rule_generation/outputs/rules_ltl_templates.json`.
+- **`tavi/trace_translator/main.py`** — converts raw JSONL traces to `flloat`-compatible boolean dicts. `done=True` on the last step of each task, `done=False` on all others (required by LTLf semantics).
+- **`tavi/rule_checker/main.py`** — loads LTL rule templates, instantiates them with real object IDs from the trace, and checks each formula against the trace using `flloat`. Returns `(violated: bool, message: str)`.
 - **`tavi/simulation/scenarios/legacy/`** — `scenario_1_hardcoded.py` and `scenario_2_autonomous.py` kept for reference; no longer part of the main pipeline.
 
-The trace format is aligned with the LTL rule templates. End-to-end checking (load traces → ground rules → `flloat` → violations) is implemented in a separate branch and being merged.
+**Verified on 9 abstract tasks:** tasks 1 and 5 correctly flagged as violations of R01 (heat source turned on and never shut off before task end).
 
 ### Changelog
+
+#### v0.7 (2026-06-26)
+
+**Rule checker (`tavi/rule_checker/main.py`) — fixed and verified:**
+- Fixed file paths (`TRACES_INPUT_FILE`, `OBJECTS_INPUT_FILE` now correctly resolve to repo root `traces/`)
+- Fixed `prepare_traces_for_checking`: exec predicates (`exec__ToggleObjectOn__candle_1`) are now merged into the facts dict so flloat can evaluate action-based rules
+- Fixed `get_task_object_ids`: now extracts real object SIDs from trace fact keys (e.g. `candle_1`) with a fallback when the objects sidecar file doesn't exist
+- Fixed `done` marker: `done=False` on intermediate steps, `done=True` only on the last step per task (LTLf termination semantics)
+- Verified end-to-end on 9 abstract tasks: 2 violations correctly detected (tasks 1 and 5 — candle toggled on, never shut off)
 
 #### v0.6 (2026-06-10)
 

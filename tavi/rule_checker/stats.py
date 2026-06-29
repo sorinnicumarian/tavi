@@ -37,7 +37,7 @@ _UNSAFE_CATEGORIES = {
 
 def load_ground_truth(traces_file: str) -> dict[int, dict]:
     """
-    Returns {task_id: {instruction, risk_category, is_unsafe}} from task_start records.
+    Returns {task_id: {instruction, scene_name, risk_category, is_unsafe}} from task_start records.
     """
     gt = {}
     with open(traces_file) as f:
@@ -47,22 +47,59 @@ def load_ground_truth(traces_file: str) -> dict[int, dict]:
                 risk = r.get("risk_category") or ""
                 gt[r["task_id"]] = {
                     "instruction": r.get("instruction", ""),
+                    "scene_name": r.get("scene_name", ""),
                     "risk_category": risk,
                     "is_unsafe": bool(risk),
                 }
     return gt
 
 
-def run_stats(traces_file: str) -> None:
+def _try_auto_generate_rules(task_id: int, instruction: str, scene_name: str, object_ids: list[str]) -> list | None:
+    """
+    Attempt to generate LTL rules via the LLM pipeline.
+    Returns a list of rule dicts, or None if auto-generation is not available.
+    """
+    if not os.environ.get("GEMINI_API_KEY"):
+        return None
+    try:
+        from tavi.rule_generation.src.auto_generate import generate_rules_for_task
+        rules = generate_rules_for_task(
+            task_id=task_id,
+            instruction=instruction,
+            object_ids=object_ids,
+            scene_name=scene_name,
+        )
+        return rules if rules else None
+    except Exception as exc:
+        print(f"  [auto-generate] task {task_id} failed: {exc}")
+        return None
+
+
+def run_stats(traces_file: str, auto_generate: bool = False) -> None:
     gt = load_ground_truth(traces_file)
     task_ids = sorted(gt.keys())
+
+    auto = auto_generate and bool(os.environ.get("GEMINI_API_KEY"))
+    if auto_generate and not os.environ.get("GEMINI_API_KEY"):
+        print("  [auto-generate] GEMINI_API_KEY not set — falling back to static rules")
 
     results = []
     for tid in task_ids:
         traces = list(get_steps(traces_file, task_id=tid))
         if not traces:
             continue
-        violated, message, violations, _ = check_rules(traces, tid)
+
+        rules = None
+        if auto:
+            from tavi.rule_checker.main import get_task_object_ids
+            object_ids = get_task_object_ids(tid)
+            rules = _try_auto_generate_rules(
+                tid, gt[tid]["instruction"], gt[tid]["scene_name"], object_ids
+            )
+            if rules:
+                print(f"  [auto-generate] task {tid}: {len(rules)} rules generated")
+
+        violated, message, violations, _ = check_rules(traces, tid, rules=rules)
         results.append({
             "task_id": tid,
             "instruction": gt[tid]["instruction"],
@@ -203,23 +240,41 @@ def collect_stats(results):
 
 
 if __name__ == "__main__":
+    from dotenv import load_dotenv
+    load_dotenv()
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--traces", action="append", dest="traces_files",
         help="Path(s) to translated JSONL trace file(s). Can be repeated.")
+    parser.add_argument("--auto-generate", action="store_true",
+        help="Generate rules per task via the LLM pipeline (requires GEMINI_API_KEY in .env).")
     args = parser.parse_args()
 
     traces_files = args.traces_files or [TRACES_INPUT_FILE]
+    auto = args.auto_generate
+
+    if auto:
+        key = os.environ.get("GEMINI_API_KEY")
+        print(f"Auto-generate: {'enabled (GEMINI_API_KEY set)' if key else 'disabled (GEMINI_API_KEY missing)'}")
 
     results_by_file = {}
     for tf in traces_files:
         name = os.path.splitext(os.path.basename(tf))[0]
-        results = []
+        run_stats(tf, auto_generate=auto)
         gt = load_ground_truth(tf)
+        results = []
         for tid in sorted(gt.keys()):
             traces = list(get_steps(tf, task_id=tid))
             if not traces:
                 continue
-            violated, message, violations, _ = check_rules(traces, tid)
+            rules = None
+            if auto and os.environ.get("GEMINI_API_KEY"):
+                from tavi.rule_checker.main import get_task_object_ids
+                rules = _try_auto_generate_rules(
+                    tid, gt[tid]["instruction"], gt[tid]["scene_name"],
+                    get_task_object_ids(tid)
+                )
+            violated, message, violations, _ = check_rules(traces, tid, rules=rules)
             results.append({
                 "task_id": tid,
                 "instruction": gt[tid]["instruction"],
@@ -231,7 +286,6 @@ if __name__ == "__main__":
             })
         stats = collect_stats(results)
         results_by_file[name] = (results, stats)
-        run_stats(tf)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = os.path.dirname(TRACES_INPUT_FILE)

@@ -99,11 +99,23 @@ def instantiate_rules(rule_templates, task_id):
     """
     Instantiate parametric rule templates by substituting concrete object IDs.
     Returns list of (rule_id, title, grounded_formula).
+
+    rule_templates may be a list of (rule_id, title, formula) tuples
+    or a list of rule dicts (from auto_generate / rules_ltl_templates.json).
     """
     instantiated = []
     object_ids = get_task_object_ids(task_id)
 
-    for rule_id, title, template in rule_templates:
+    def _as_tuple(r):
+        if isinstance(r, dict):
+            return r["rule_id"], r["title"], r["formula_template"]
+        return r
+
+    for entry in rule_templates:
+        rule_id, title, template = _as_tuple(entry)
+        if r_status := (entry.get("status") if isinstance(entry, dict) else None):
+            if r_status == "not_expressible_with_current_trace_predicates":
+                continue
         vars_ = sorted(set(re.findall(r"\{(\w+)\}", template)))
 
         if not vars_:
@@ -126,9 +138,16 @@ def find_first_violating_step(traces_dict, parsed_formula):
             return i - 1
     return None
 
-def check_rules(traces, task_id):
+def check_rules(traces, task_id, rules: list | None = None):
+    """
+    Check LTL rules against a task trace.
+
+    rules: optional pre-generated list of rule dicts (from auto_generate or rule_json_to_list).
+           If None, falls back to the static rules_ltl_templates.json file.
+    """
     traces_dict = prepare_traces_for_checking(traces)
-    rules_list = instantiate_rules(rule_json_to_list(), task_id)
+    raw_rules = rules if rules is not None else rule_json_to_list()
+    rules_list = instantiate_rules(raw_rules, task_id)
 
     parser = LTLfParser()
 

@@ -128,95 +128,62 @@ def run_stats(traces_file: str) -> None:
                 print(f"  task {r['task_id']}: {r['instruction'][:70]}")
 
 
-def save_excel(results_by_file: dict, output_path: str) -> None:
-    import openpyxl
-    from openpyxl.styles import Font, PatternFill, Alignment
+def save_csv(results_by_file: dict, output_dir: str, timestamp: str) -> None:
+    import csv
 
-    wb = openpyxl.Workbook()
-    wb.remove(wb.active)  # remove default sheet
-
-    GREEN  = PatternFill("solid", fgColor="C6EFCE")
-    RED    = PatternFill("solid", fgColor="FFC7CE")
-    YELLOW = PatternFill("solid", fgColor="FFEB9C")
-    HEADER = PatternFill("solid", fgColor="4472C4")
-    BOLD   = Font(bold=True)
-    WHITE  = Font(bold=True, color="FFFFFF")
-
+    saved = []
     for trace_name, (results, stats) in results_by_file.items():
-        ws = wb.create_sheet(title=trace_name[:31])
-
-        headers = ["Task ID", "Instruction", "Risk Category", "Ground Truth",
-                   "Checker", "Outcome", "Rule ID", "Rule Title", "Violated at Step", "Action at Step", "Formula"]
-        for col, h in enumerate(headers, 1):
-            cell = ws.cell(row=1, column=col, value=h)
-            cell.font = WHITE
-            cell.fill = HEADER
-            cell.alignment = Alignment(wrap_text=True)
-
-        for row_i, r in enumerate(results, 2):
-            gt_label = r["risk_category"] if r["is_unsafe"] else "SAFE"
-            checker  = "FLAGGED" if r["checker_flagged"] else "OK"
-            if r["is_unsafe"] and r["checker_flagged"]:
-                outcome, fill = "True Positive", GREEN
-            elif r["is_unsafe"] and not r["checker_flagged"]:
-                outcome, fill = "False Negative", RED
-            elif not r["is_unsafe"] and r["checker_flagged"]:
-                outcome, fill = "False Positive", RED
-            else:
-                outcome, fill = "True Negative", GREEN
-
-            v = r["violations"][0] if r["violations"] else {}
-            row = [
-                r["task_id"],
-                r["instruction"],
-                r["risk_category"] or "—",
-                gt_label,
-                checker,
-                outcome,
-                v.get("rule_id", "—"),
-                v.get("title", "—"),
-                v.get("first_violating_step", "—"),
-                v.get("action_at_step", "—"),
-                v.get("formula", "—"),
-            ]
-            for col, val in enumerate(row, 1):
-                cell = ws.cell(row=row_i, column=col, value=val)
-                cell.fill = fill
-                cell.alignment = Alignment(wrap_text=True)
-
-        # summary block
-        sr = len(results) + 3
-        ws.cell(row=sr,   column=1, value="Summary").font = BOLD
-        for label, val in [
-            ("Tasks evaluated", stats["total"]),
-            ("Known unsafe",    stats["total_unsafe"]),
-            ("Known safe",      stats["total_safe"]),
-            ("True Positives",  stats["tp"]),
-            ("False Negatives", stats["fn"]),
-            ("False Positives", stats["fp"]),
-            ("True Negatives",  stats["tn"]),
-            ("Recall",          f"{stats['recall']:.0%}" if stats["recall"] == stats["recall"] else "n/a"),
-            ("Precision",       f"{stats['precision']:.0%}" if stats["precision"] == stats["precision"] else "n/a"),
-            ("Accuracy",        f"{stats['accuracy']:.0%}"),
-        ]:
-            sr += 1
-            ws.cell(row=sr, column=1, value=label).font = BOLD
-            ws.cell(row=sr, column=2, value=val)
-
-        ws.column_dimensions["A"].width = 8
-        ws.column_dimensions["B"].width = 45
-        ws.column_dimensions["C"].width = 28
-        ws.column_dimensions["D"].width = 18
-        ws.column_dimensions["E"].width = 10
-        ws.column_dimensions["F"].width = 18
-        ws.column_dimensions["G"].width = 8
-        ws.column_dimensions["H"].width = 35
-        ws.column_dimensions["I"].width = 16
-        ws.column_dimensions["J"].width = 20
-        ws.column_dimensions["K"].width = 60
-
-    wb.save(output_path)
-    print(f"\nSaved: {output_path}")
+        path = os.path.join(output_dir, f"checker_stats_{trace_name}_{timestamp}.csv")
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([
+                "Task ID", "Instruction", "Risk Category", "Ground Truth",
+                "Checker", "Outcome", "Rule ID", "Rule Title",
+                "Violated at Step", "Action at Step", "Formula",
+            ])
+            for r in results:
+                gt_label = r["risk_category"] if r["is_unsafe"] else "SAFE"
+                checker  = "FLAGGED" if r["checker_flagged"] else "OK"
+                if r["is_unsafe"] and r["checker_flagged"]:
+                    outcome = "True Positive"
+                elif r["is_unsafe"] and not r["checker_flagged"]:
+                    outcome = "False Negative"
+                elif not r["is_unsafe"] and r["checker_flagged"]:
+                    outcome = "False Positive"
+                else:
+                    outcome = "True Negative"
+                v = r["violations"][0] if r["violations"] else {}
+                writer.writerow([
+                    r["task_id"],
+                    r["instruction"],
+                    r["risk_category"] or "",
+                    gt_label,
+                    checker,
+                    outcome,
+                    v.get("rule_id", ""),
+                    v.get("title", ""),
+                    v.get("first_violating_step", ""),
+                    v.get("action_at_step", ""),
+                    v.get("formula", ""),
+                ])
+            writer.writerow([])
+            writer.writerow(["Summary"])
+            for label, val in [
+                ("Tasks evaluated", stats["total"]),
+                ("Known unsafe",    stats["total_unsafe"]),
+                ("Known safe",      stats["total_safe"]),
+                ("True Positives",  stats["tp"]),
+                ("False Negatives", stats["fn"]),
+                ("False Positives", stats["fp"]),
+                ("True Negatives",  stats["tn"]),
+                ("Recall",          f"{stats['recall']:.0%}" if stats["recall"] == stats["recall"] else "n/a"),
+                ("Precision",       f"{stats['precision']:.0%}" if stats["precision"] == stats["precision"] else "n/a"),
+                ("Accuracy",        f"{stats['accuracy']:.0%}"),
+            ]:
+                writer.writerow([label, val])
+        print(f"Saved: {path}")
+        saved.append(path)
+    return saved
 
 
 def collect_stats(results):
@@ -267,5 +234,5 @@ if __name__ == "__main__":
         run_stats(tf)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    excel_path = os.path.join(os.path.dirname(TRACES_INPUT_FILE), f"checker_stats_{ts}.xlsx")
-    save_excel(results_by_file, excel_path)
+    output_dir = os.path.dirname(TRACES_INPUT_FILE)
+    save_csv(results_by_file, output_dir, ts)

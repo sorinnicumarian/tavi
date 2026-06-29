@@ -86,9 +86,10 @@ def prepare_traces_for_checking(traces):
         step_facts = dict(record["facts"])
 
         # merge exec key into facts so flloat can see it
+        # flloat's LTLf parser only accepts lowercase symbol names, so we lowercase
         for key, value in record.items():
             if key.startswith("exec__"):
-                step_facts[key] = value
+                step_facts[key.lower()] = value
 
         result.append(step_facts)
 

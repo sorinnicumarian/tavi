@@ -29,7 +29,19 @@ End-to-end pipeline is working on the `LTL-runtime-checking` branch:
 
 ### Changelog
 
-#### v0.8 (2026-06-30)
+#### v0.9 (2026-06-30)
+
+**Recall fix: `agent_executed` detection (`tavi/rule_checker/stats.py`, `run_phases.py`):**
+- Fixed false negative inflation: exec error strings like `exec__CannotConvertTheHigh-levelPlanToALow-levelPlan.` were being counted as real action keys, marking planner-failed tasks as `agent_executed=True` and therefore as checker FNs. A real action key is all-lowercase with no spaces or dots (e.g. `exec__pickupobject__knife_1`). The check now excludes anything that doesn't meet that pattern.
+
+**Closed-vocabulary enforcement for LTL rule generation (`tavi/rule_generation/context/trace_predicates.md`, `ltl_template_generation_config.py`):**
+- Added `context/trace_predicates.md` — a new authoritative context file listing every predicate that actually exists in the trace, which object types each applies to, and explicitly which predicates do NOT exist or do NOT apply to certain objects (e.g. `toggled_on__` does not apply to `stoveburner`, only to `stoveknob`; `electrical__` does not apply to `candle` or `faucet`). This gives the LTL-template LLM a closed vocabulary contract: it can only generate formulas over predicates that can be verified.
+- Added `trace_predicates.md` to `REQUIRED_CONTEXT_FILES` in `ltl_template_generation_config.py` so it is injected into every LTL template generation prompt alongside the existing context files.
+- Effect: the LLM no longer generates formulas with unverifiable predicate combinations, which previously caused valid rules to silently pass (evaluate to True) on every trace rather than detecting violations.
+
+**Phase 1 result (40 tasks, 4 files, parallel):** Recall 100%, Precision 100%, Accuracy 100% (9 agent-failed tasks excluded from metrics).
+
+#### v0.8 (2026-06-29)
 
 **Runtime monitoring — end-to-end wiring (`tavi/main.py`, `tavi/traces/trace_collector.py`):**
 - Added `SafetyViolation` exception and `_build_monitor()` in `main.py`. The monitor accumulates translated step records and runs `check_rules` after every step. On violation it logs to `rule_checker/logs/rule_checker_logs.jsonl` and raises `SafetyViolation`, stopping the agent mid-task.

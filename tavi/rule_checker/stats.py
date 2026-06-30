@@ -129,9 +129,13 @@ def run_stats(traces_file: str, auto_generate: bool = False) -> None:
                 print(f"  [auto-generate] task {tid}: {len(llm_rules)} rules generated (+{len(rules) - len(llm_rules)} static)")
 
         violated, message, violations, _ = check_rules(traces, tid, rules=rules, object_ids=object_ids)
-        # exec__ keys are top-level in the translated record, not inside "facts"
+        # exec__ keys are top-level in the translated record, not inside "facts".
+        # A real action key is all-lowercase with no spaces, dots, or hyphens
+        # (e.g. exec__pickupobject__knife_1). Error strings like
+        # exec__CannotConvertTheHigh-levelPlanToALow-levelPlan. are NOT real actions.
         agent_executed = any(
-            any(k.startswith("exec__") for k in step)
+            any(k.startswith("exec__") and " " not in k and "." not in k and "-" not in k
+                for k in step)
             for step in traces
         )
         results.append({
@@ -197,71 +201,83 @@ def run_stats(traces_file: str, auto_generate: bool = False) -> None:
 def save_csv(results_by_file: dict, output_dir: str, timestamp: str) -> None:
     import csv
 
-    saved = []
-    for trace_name, (results, stats) in results_by_file.items():
-        path = os.path.join(output_dir, f"checker_stats_{trace_name}_{timestamp}.csv")
-        with open(path, "w", newline="", encoding="utf-8") as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                "Task ID", "Instruction", "Risk Category", "Ground Truth",
-                "Checker", "Outcome", "Agent Executed", "Rule ID", "Rule Title",
-                "Violated at Step", "Action at Step", "Formula",
-            ])
-            for r in results:
-                gt_label = r["risk_category"] if r["is_unsafe"] else "SAFE"
-                checker  = "FLAGGED" if r["checker_flagged"] else "OK"
-                outcome  = _classify_outcome(r).lstrip("✓✗~ ").strip()
-                v = r["violations"][0] if r["violations"] else {}
-                writer.writerow([
-                    r["task_id"],
-                    r["instruction"],
-                    r["risk_category"] or "",
-                    gt_label,
-                    checker,
-                    outcome,
-                    "YES" if r.get("agent_executed") else "NO",
-                    v.get("rule_id", ""),
-                    v.get("title", ""),
-                    v.get("first_violating_step", ""),
-                    v.get("action_at_step", ""),
-                    v.get("formula", ""),
-                ])
-            writer.writerow([])
-            writer.writerow(["Summary"])
-            for label, val in [
-                ("Tasks evaluated",        stats["total"]),
-                ("Known unsafe",           stats["total_unsafe"]),
-                ("Known safe",             stats["total_safe"]),
-                ("Agent Failed (N/A)",     stats["agent_failed"]),
-                ("True Positives",         stats["tp"]),
-                ("False Negatives",        stats["fn"]),
-                ("False Positives",        stats["fp"]),
-                ("True Negatives",         stats["tn"]),
-                ("Recall",                 f"{stats['recall']:.0%}" if stats["recall"] == stats["recall"] else "n/a"),
-                ("Precision",              f"{stats['precision']:.0%}" if stats["precision"] == stats["precision"] else "n/a"),
-                ("Accuracy",               f"{stats['accuracy']:.0%}"),
-            ]:
-                writer.writerow([label, val])
+    run_dir = os.path.join(output_dir, "stats", timestamp)
+    os.makedirs(run_dir, exist_ok=True)
 
-            # Per-risk-category breakdown
-            cat_results: dict[str, list] = {}
-            for r in results:
-                cat = r["risk_category"] or "SAFE"
-                cat_results.setdefault(cat, []).append(r)
-            writer.writerow([])
-            writer.writerow(["By Risk Category", "Tasks", "TP", "FN", "FP", "TN", "Recall", "Precision", "Accuracy"])
-            for cat, rs in sorted(cat_results.items()):
-                s = collect_stats(rs)
-                writer.writerow([
-                    cat,
-                    s["total"],
-                    s["tp"], s["fn"], s["fp"], s["tn"],
-                    f"{s['recall']:.0%}" if s["recall"] == s["recall"] else "n/a",
-                    f"{s['precision']:.0%}" if s["precision"] == s["precision"] else "n/a",
-                    f"{s['accuracy']:.0%}",
-                ])
-        print(f"Saved: {path}")
-        saved.append(path)
+    # Single combined CSV with all tasks across all files
+    all_results = []
+    for results, _ in results_by_file.values():
+        all_results.extend(results)
+
+    combined_stats = collect_stats(all_results)
+    combined_path = os.path.join(run_dir, "checker_stats_combined.csv")
+
+    saved = [combined_path]
+    with open(combined_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            "File", "Task ID", "Instruction", "Risk Category", "Ground Truth",
+            "Checker", "Outcome", "Agent Executed", "Monitor Status",
+            "Rule ID", "Rule Title", "Violated at Step", "Action at Step", "Formula",
+        ])
+        for r in all_results:
+            gt_label = r["risk_category"] if r["is_unsafe"] else "SAFE"
+            checker  = "FLAGGED" if r["checker_flagged"] else "OK"
+            outcome  = _classify_outcome(r).lstrip("✓✗~ ").strip()
+            v = r["violations"][0] if r["violations"] else {}
+            writer.writerow([
+                r.get("file", ""),
+                r["task_id"],
+                r["instruction"],
+                r["risk_category"] or "",
+                gt_label,
+                checker,
+                outcome,
+                "YES" if r.get("agent_executed") else "NO",
+                r.get("monitor_status", ""),
+                v.get("rule_id", ""),
+                v.get("title", ""),
+                v.get("first_violating_step", ""),
+                v.get("action_at_step", ""),
+                v.get("formula", ""),
+            ])
+
+        writer.writerow([])
+        writer.writerow(["Summary"])
+        for label, val in [
+            ("Total tasks",            len(all_results)),
+            ("Tasks evaluated",        combined_stats["total"]),
+            ("Known unsafe",           combined_stats["total_unsafe"]),
+            ("Known safe",             combined_stats["total_safe"]),
+            ("Agent Failed (N/A)",     combined_stats["agent_failed"]),
+            ("Rule Gen Failed",        sum(1 for r in all_results if str(r.get("monitor_status","")).startswith("rule_gen_failed"))),
+            ("True Positives",         combined_stats["tp"]),
+            ("False Negatives",        combined_stats["fn"]),
+            ("False Positives",        combined_stats["fp"]),
+            ("True Negatives",         combined_stats["tn"]),
+            ("Recall",                 f"{combined_stats['recall']:.0%}" if combined_stats["recall"] == combined_stats["recall"] else "n/a"),
+            ("Precision",              f"{combined_stats['precision']:.0%}" if combined_stats["precision"] == combined_stats["precision"] else "n/a"),
+            ("Accuracy",               f"{combined_stats['accuracy']:.0%}"),
+        ]:
+            writer.writerow([label, val])
+
+        # Per-risk-category breakdown
+        cat_results: dict[str, list] = {}
+        for r in all_results:
+            cat = r["risk_category"] or "SAFE"
+            cat_results.setdefault(cat, []).append(r)
+        writer.writerow([])
+        writer.writerow(["By Risk Category", "Tasks", "TP", "FN", "FP", "TN", "Recall", "Precision", "Accuracy"])
+        for cat, rs in sorted(cat_results.items()):
+            s = collect_stats(rs)
+            writer.writerow([
+                cat, s["total"],
+                s["tp"], s["fn"], s["fp"], s["tn"],
+                f"{s['recall']:.0%}" if s["recall"] == s["recall"] else "n/a",
+                f"{s['precision']:.0%}" if s["precision"] == s["precision"] else "n/a",
+                f"{s['accuracy']:.0%}",
+            ])
+    print(f"Saved: {combined_path}")
     return saved
 
 
@@ -330,9 +346,9 @@ if __name__ == "__main__":
                 if llm_rules:
                     rules = rules + llm_rules
             violated, message, violations, _ = check_rules(traces, tid, rules=rules, object_ids=object_ids)
-            # exec__ keys are top-level in the translated record, not inside "facts"
             agent_executed = any(
-                any(k.startswith("exec__") for k in step)
+                any(k.startswith("exec__") and k == k.lower() and " " not in k and "." not in k
+                    for k in step)
                 for step in traces
             )
             results.append({

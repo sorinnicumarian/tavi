@@ -73,8 +73,8 @@ _DEFAULT_INPUT = os.path.join(_SCENARIOS_DIR, "safeagentbench_tasks", "safeagent
 
 def _resolve_paths(task_file: str):
     stem = Path(task_file).stem.replace("_tasks", "")
-    out = os.path.join(_REPO_ROOT, "traces", f"{stem}_traces.jsonl")
-    obj = os.path.join(_REPO_ROOT, "traces", f"{stem}_traces_objects.jsonl")
+    out = os.path.join(_REPO_ROOT, "traces", "jsonl", f"{stem}_traces.jsonl")
+    obj = os.path.join(_REPO_ROOT, "traces", "jsonl", f"{stem}_traces_objects.jsonl")
     return out, obj
 
 RULE_CHECKER_LOGS_PATH = os.path.join(
@@ -156,26 +156,34 @@ if __name__ == "__main__":
             try:
                 # ── Runtime monitor setup (before agent runs) ──────────────────
                 monitor_callback = None
+                monitor_status = "no_monitor"
                 risk_category = task.get("risk_category", "") or ""
-                if os.environ.get("GEMINI_API_KEY") and risk_category:
-                    try:
-                        from tavi.rule_generation.src.auto_generate import generate_rules_for_task
-                        from tavi.rule_checker.main import rule_json_to_list
-                        raw_objs = task.get("objects", [])
-                        scene_objects = [o if isinstance(o, str) else o["name"] for o in raw_objs]
-                        llm_rules = generate_rules_for_task(
-                            task_id=idx,
-                            instruction=instruction,
-                            object_ids=scene_objects,
-                            scene_name=scene_name,
-                            risk_category=risk_category,
-                        )
-                        static_rules = rule_json_to_list()
-                        all_rules = static_rules + llm_rules
-                        monitor_callback = _build_monitor(all_rules, scene_objects, RULE_CHECKER_LOGS_PATH)
-                        print(f"  [monitor] {len(all_rules)} rules loaded ({len(llm_rules)} LLM + {len(static_rules)} static)")
-                    except Exception as e:
-                        print(f"  [monitor] rule generation failed: {e} — running without monitor")
+                raw_objs = task.get("objects", [])
+                scene_objects = [o if isinstance(o, str) else o["name"] for o in raw_objs]
+                if risk_category:
+                    if not os.environ.get("GEMINI_API_KEY"):
+                        monitor_status = "rule_gen_failed:GEMINI_API_KEY not set"
+                        print(f"  [monitor] GEMINI_API_KEY not set — task flagged, skipping monitor")
+                    else:
+                        try:
+                            from tavi.rule_generation.src.auto_generate import generate_rules_for_task
+                            llm_rules = generate_rules_for_task(
+                                task_id=idx,
+                                instruction=instruction,
+                                object_ids=scene_objects,
+                                scene_name=scene_name,
+                                risk_category=risk_category,
+                            ) or []
+                            if not llm_rules:
+                                monitor_status = "rule_gen_failed:no rules generated"
+                                print(f"  [monitor] no rules generated — task flagged, skipping monitor")
+                            else:
+                                monitor_callback = _build_monitor(llm_rules, scene_objects, RULE_CHECKER_LOGS_PATH)
+                                monitor_status = f"ok:{len(llm_rules)}_rules"
+                                print(f"  [monitor] {len(llm_rules)} LLM rules loaded")
+                        except Exception as e:
+                            monitor_status = f"rule_gen_failed:{e}"
+                            print(f"  [monitor] rule generation failed: {e} — task flagged, skipping monitor")
 
                 trace_collector = TraceCollector(
                     output_path=OUTPUT_FILE,
@@ -224,6 +232,7 @@ if __name__ == "__main__":
                     "status": status,
                     "safety_stopped": safety_stopped,
                     "success_rate": sr_step,
+                    "monitor_status": monitor_status,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
 

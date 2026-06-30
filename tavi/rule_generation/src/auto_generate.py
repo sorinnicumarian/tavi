@@ -23,8 +23,12 @@ _RULE_GENERATION_ROOT = Path(__file__).resolve().parents[1]  # .../rule_generati
 _TASK_CACHE_DIR = _RULE_GENERATION_ROOT / "outputs" / "task_rules"
 
 
-def _cache_path(task_id: int) -> Path:
-    return _TASK_CACHE_DIR / str(task_id) / "rules_ltl_templates.json"
+def _cache_path(task_id: int, instruction: str = "") -> Path:
+    # Include a short hash of the instruction so parallel runs on different files
+    # with the same task_id index don't share a cache entry.
+    import hashlib
+    suffix = "_" + hashlib.md5(instruction.encode()).hexdigest()[:8] if instruction else ""
+    return _TASK_CACHE_DIR / f"{task_id}{suffix}" / "rules_ltl_templates.json"
 
 
 
@@ -149,7 +153,7 @@ def _generate_rules_inner(
 
     rules = _repair_rules(rules)
 
-    cached = _cache_path(task_id)
+    cached = _cache_path(task_id, instruction)
     cached.parent.mkdir(parents=True, exist_ok=True)
     cached.write_text(json.dumps(rules, indent=2, ensure_ascii=False), encoding="utf-8")
     return rules
@@ -176,9 +180,10 @@ def generate_rules_for_task(
     if not os.environ.get("GEMINI_API_KEY"):
         raise RuntimeError("GEMINI_API_KEY not set")
 
-    cached = _cache_path(task_id)
+    cached = _cache_path(task_id, instruction)
     if cached.exists() and not force:
-        return json.loads(cached.read_text(encoding="utf-8"))
+        result = json.loads(cached.read_text(encoding="utf-8"))
+        return result if result is not None else []
 
     with ThreadPoolExecutor(max_workers=1) as ex:
         future = ex.submit(

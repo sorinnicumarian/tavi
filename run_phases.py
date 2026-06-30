@@ -36,7 +36,7 @@ def log(msg: str) -> None:
 
 def translated_path(task_file: Path) -> Path:
     stem = task_file.stem.replace("_tasks", "")
-    return TRACES_DIR / f"{stem}_traces_translated.jsonl"
+    return TRACES_DIR / "jsonl" / f"{stem}_traces_translated.jsonl"
 
 
 def run_task_file(task_file: Path, max_tasks: int) -> bool:
@@ -74,8 +74,24 @@ def compute_recall(translated_files: list[Path]) -> tuple[float, dict]:
     from tavi.rule_checker.stats import (
         load_ground_truth, collect_stats, _extract_object_ids, _try_auto_generate_rules
     )
-    from tavi.rule_checker.main import check_rules, rule_json_to_list
+    from tavi.rule_checker.main import check_rules
     from tavi.trace_translator.main import get_steps
+
+    # Load monitor_status from checkpoints (keyed by task_id per file)
+    def _load_monitor_statuses(tf: Path) -> dict:
+        stem = tf.stem.replace("_traces_translated", "")
+        cp = tf.parent / f"{stem}_checkpoint.jsonl"
+        statuses = {}
+        if cp.exists():
+            import json as _json
+            with open(cp) as f:
+                for line in f:
+                    try:
+                        r = _json.loads(line)
+                        statuses[r["task_id"]] = r.get("monitor_status", "")
+                    except Exception:
+                        pass
+        return statuses
 
     all_results = []
     for tf in translated_files:
@@ -83,21 +99,26 @@ def compute_recall(translated_files: list[Path]) -> tuple[float, dict]:
             log(f"  MISSING translated file: {tf} — skipping")
             continue
         gt = load_ground_truth(str(tf))
+        monitor_statuses = _load_monitor_statuses(tf)
         for tid in sorted(gt.keys()):
             traces = list(get_steps(str(tf), task_id=tid))
             if not traces:
                 continue
             object_ids = _extract_object_ids(traces)
             risk_cat = gt[tid]["risk_category"]
+            # Use only LLM-generated rules — no static rules
             rules: list = []
             if risk_cat:
-                rules = rule_json_to_list()
+                rules = _try_auto_generate_rules(
+                    tid, gt[tid]["instruction"], gt[tid].get("scene_name", ""),
+                    object_ids, risk_category=risk_cat,
+                ) or []
             violated, message, violations, _ = check_rules(
                 traces, tid, rules=rules, object_ids=object_ids
             )
-            # exec__ keys are top-level in the translated record, not inside "facts"
             agent_executed = any(
-                any(k.startswith("exec__") for k in step)
+                any(k.startswith("exec__") and " " not in k and "." not in k and "-" not in k
+                    for k in step)
                 for step in traces
             )
             all_results.append({
@@ -108,6 +129,7 @@ def compute_recall(translated_files: list[Path]) -> tuple[float, dict]:
                 "is_unsafe": gt[tid]["is_unsafe"],
                 "checker_flagged": violated,
                 "agent_executed": agent_executed,
+                "monitor_status": monitor_statuses.get(tid, ""),
                 "violations": violations,
                 "message": message,
             })
@@ -118,7 +140,8 @@ def compute_recall(translated_files: list[Path]) -> tuple[float, dict]:
 
 def save_phase_summary(phase: int, stats: dict, results: list, translated_files: list[Path]) -> None:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = TRACES_DIR / f"phase{phase}_summary_{ts}.json"
+    path = TRACES_DIR / "summaries" / f"phase{phase}_summary_{ts}.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps({
         "phase": phase,
         "timestamp": ts,
@@ -129,7 +152,7 @@ def save_phase_summary(phase: int, stats: dict, results: list, translated_files:
     }, indent=2))
     log(f"  Phase {phase} summary saved: {path.name}")
 
-    # Also save CSV via stats.save_csv
+    # Save single combined CSV
     from tavi.rule_checker.stats import save_csv, collect_stats
     by_file: dict = {}
     for tf in translated_files:
@@ -139,13 +162,28 @@ def save_phase_summary(phase: int, stats: dict, results: list, translated_files:
     save_csv(by_file, str(TRACES_DIR), f"phase{phase}_{ts}")
 
 
+
 def run_phase(phase: int, max_tasks: int) -> tuple[float, dict, list]:
     log(f"\n{'='*60}")
-    log(f"PHASE {phase} — {max_tasks} tasks per file")
+    log(f"PHASE {phase} — {max_tasks} tasks per file (parallel)")
     log(f"{'='*60}")
 
+    procs = []
     for tf in TASK_FILES:
-        run_task_file(tf, max_tasks)
+        log(f"  Starting: {tf.name}  max-tasks={max_tasks}")
+        cmd = [str(VENV_PYTHON), "-m", "tavi.main", "--task-file", str(tf), "--max-tasks", str(max_tasks)]
+        procs.append(subprocess.Popen(cmd, cwd=str(ROOT), start_new_session=True))
+
+    try:
+        for p in procs:
+            p.wait()
+    except KeyboardInterrupt:
+        for p in procs:
+            try:
+                os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+            except Exception:
+                pass
+        raise
 
     log("\nAll task files done. Computing stats...")
     translated = [translated_path(tf) for tf in TASK_FILES]

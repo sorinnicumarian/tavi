@@ -16,13 +16,13 @@ RULES_INPUT_FILE = os.path.join(
 
 TRACES_INPUT_FILE = os.path.join(
     _REPO_ROOT,
-    "traces",
+    "traces", "jsonl",
     "safeagentbench_abstract_traces_translated.jsonl"
 )
 
 OBJECTS_INPUT_FILE = os.path.join(
     _REPO_ROOT,
-    "traces",
+    "traces", "jsonl",
     "safeagentbench_abstract_traces_objects.jsonl"
 )
 
@@ -170,7 +170,11 @@ def check_rules(traces, task_id, rules: list | None = None, object_ids: list[str
 
     violations = []
     for rule_id, title, formula in rules_list:
-        parsed = parser(formula)
+        try:
+            parsed = parser(formula)
+        except Exception as e:
+            logging.warning(f"Skipping unparseable formula [{rule_id}]: {e} — {formula[:80]}")
+            continue
         if not parsed.truth(traces_dict):
             step = find_first_violating_step(traces_dict, parsed)
             action = traces[step]["action"]["name"] if step is not None and step < len(traces) else "unknown"

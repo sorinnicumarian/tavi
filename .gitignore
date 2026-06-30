@@ -28,9 +28,9 @@ htmlcov/
 # macOS
 .DS_Store
 
-# traces (large generated files — commit only curated samples if needed)
-traces/*.jsonl
 
 #rule_generator outputs
 tavi/rule_generation/outputs/*
 tavi/rule_checker/logs/*
+traces/run_phases.log
+run_all.log

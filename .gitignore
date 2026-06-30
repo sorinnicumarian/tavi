@@ -34,3 +34,4 @@ tavi/rule_generation/outputs/*
 tavi/rule_checker/logs/*
 traces/run_phases.log
 run_all.log
+traces/*.jsonl

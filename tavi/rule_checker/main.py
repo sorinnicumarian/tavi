@@ -11,7 +11,7 @@ RULES_INPUT_FILE = os.path.join(
     _TAVI_ROOT,
     "rule_generation",
     "outputs",
-    "rules_ltl_templates.json"
+    "rules_static.json"
 )
 
 TRACES_INPUT_FILE = os.path.join(
@@ -95,16 +95,19 @@ def prepare_traces_for_checking(traces):
 
     return result
 
-def instantiate_rules(rule_templates, task_id):
+def instantiate_rules(rule_templates, task_id, object_ids: list[str] | None = None):
     """
     Instantiate parametric rule templates by substituting concrete object IDs.
     Returns list of (rule_id, title, grounded_formula).
 
     rule_templates may be a list of (rule_id, title, formula) tuples
     or a list of rule dicts (from auto_generate / rules_ltl_templates.json).
+
+    object_ids: if provided, use these directly instead of reading from file.
     """
     instantiated = []
-    object_ids = get_task_object_ids(task_id)
+    if object_ids is None:
+        object_ids = get_task_object_ids(task_id)
 
     def _as_tuple(r):
         if isinstance(r, dict):
@@ -112,17 +115,30 @@ def instantiate_rules(rule_templates, task_id):
         return r
 
     for entry in rule_templates:
-        rule_id, title, template = _as_tuple(entry)
-        if r_status := (entry.get("status") if isinstance(entry, dict) else None):
-            if r_status == "not_expressible_with_current_trace_predicates":
+        if isinstance(entry, dict):
+            if entry.get("status") == "not_expressible_with_current_trace_predicates":
                 continue
+            if not entry.get("formula_template"):
+                continue
+        rule_id, title, template = _as_tuple(entry)
+        # Normalize any PascalCase literals in the formula to snake_case for flloat
+        template = re.sub(
+            r'(?<=[_a-z])([A-Z][a-zA-Z0-9]*)',
+            lambda m: re.sub(r'(?<!^)(?=[A-Z])', '_', m.group(1)).lower(),
+            template
+        )
         vars_ = sorted(set(re.findall(r"\{(\w+)\}", template)))
 
         if not vars_:
             instantiated.append((rule_id, title, template))
             continue
 
-        for values in product(object_ids, repeat=len(vars_)):
+        # object_ids must be lowercase for flloat — normalize PascalCase to snake_case
+        normalized_ids = [
+            re.sub(r'(?<!^)(?=[A-Z])', '_', oid).lower() if re.search(r'[A-Z]', oid) else oid
+            for oid in object_ids
+        ]
+        for values in product(normalized_ids, repeat=len(vars_)):
             mapping = dict(zip(vars_, values))
             instantiated.append((rule_id, title, template.format(**mapping)))
 
@@ -138,16 +154,17 @@ def find_first_violating_step(traces_dict, parsed_formula):
             return i - 1
     return None
 
-def check_rules(traces, task_id, rules: list | None = None):
+def check_rules(traces, task_id, rules: list | None = None, object_ids: list[str] | None = None):
     """
     Check LTL rules against a task trace.
 
     rules: optional pre-generated list of rule dicts (from auto_generate or rule_json_to_list).
            If None, falls back to the static rules_ltl_templates.json file.
+    object_ids: if provided, used for template instantiation instead of reading from file.
     """
     traces_dict = prepare_traces_for_checking(traces)
     raw_rules = rules if rules is not None else rule_json_to_list()
-    rules_list = instantiate_rules(raw_rules, task_id)
+    rules_list = instantiate_rules(raw_rules, task_id, object_ids=object_ids)
 
     parser = LTLfParser()
 

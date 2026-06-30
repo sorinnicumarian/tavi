@@ -50,6 +50,9 @@ class TraceCollector:
         self.objects_output_path = self.output_path.with_name(
             self.output_path.stem + "_objects.jsonl"
         )
+        self.translated_output_path = self.output_path.with_name(
+            self.output_path.stem + "_translated.jsonl"
+        )
 
         self.task_id = task_id
         self.scene_name = scene_name
@@ -167,7 +170,10 @@ class TraceCollector:
         print(f"  step {self.step_id:03d}  {action_name:30s} → {'OK' if success else f'FAILED: {error}'}")
         self.step_id += 1
 
+        translated = convert_json(record)
+        with self.translated_output_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(translated) + "\n")
+
         if self.on_step is not None:
-            translated = convert_json(record)
-            return self.on_step(translated["facts"])
+            return self.on_step(translated)
         return True

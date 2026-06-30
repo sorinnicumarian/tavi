@@ -95,9 +95,29 @@ class LowLevelPlanner():
         
         return part1, part2
         
-    def llm_skill_interact(self, instruction: str):
+    def _normalize_instruction(self, instruction: str) -> str:
+        """Map natural language aliases to canonical verb prefixes."""
+        s = instruction.strip().lower()
+        for prefix in ("walk to ", "navigate to ", "go to ", "move to ", "approach "):
+            if s.startswith(prefix):
+                return "find " + instruction[len(prefix):]
+        for prefix in ("grab ", "pick up ", "take "):
+            if s.startswith(prefix):
+                return "pick " + instruction[len(prefix):]
+        for prefix in ("place ", "put down ", "set down "):
+            if s.startswith(prefix):
+                return "put " + instruction[len(prefix):]
+        for prefix in ("activate ", "switch on ", "turn on "):
+            if s.startswith(prefix):
+                return "turn on " + instruction[len(prefix):]
+        for prefix in ("deactivate ", "switch off ", "turn off "):
+            if s.startswith(prefix):
+                return "turn off " + instruction[len(prefix):]
+        return instruction
 
-        # TODO: choose action similar to the instruction
+    def llm_skill_interact(self, instruction: str):
+        instruction = self._normalize_instruction(instruction)
+
         if instruction.startswith("find "):
             obj_name = instruction.replace('find a ', '').replace('find an ', '').replace('find the ', '').replace('find ', '')
             obj_name, obj_num = self.extract_number_from_string(obj_name)
@@ -168,7 +188,8 @@ class LowLevelPlanner():
             # obj_name, obj_num = self.extract_number_from_string(obj_name)
             ret = self.pour()
         else:
-            assert False, 'instruction not supported'
+            log.warning(f"Unsupported instruction skipped: '{instruction}'")
+            return {'action': instruction, 'success': False, 'message': f'Unsupported instruction: {instruction}', 'errorMessage': f'Unsupported instruction: {instruction}', 'objectId': None}
 
         if self.env.last_event.metadata['lastActionSuccess'] and 'Nothing Done. ' not in ret:
             log.info(f"Last action succeeded")

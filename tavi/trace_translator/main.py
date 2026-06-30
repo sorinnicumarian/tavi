@@ -230,9 +230,9 @@ def get_steps(
 # ----------------------------------------------------------------------
 # Example usage
 # ----------------------------------------------------------------------
-def main():
+def main(input_file: str = INPUT_FILE, output_file: str = OUTPUT_FILE):
 
-    with open(INPUT_FILE, "r", encoding="utf-8") as fin:
+    with open(input_file, "r", encoding="utf-8") as fin:
         raw_lines = [json.loads(line) for line in fin]
 
     # Find the last step_id per task so done=True is set only there
@@ -245,7 +245,7 @@ def main():
         if tid is not None and sid > last_step.get(tid, -1):
             last_step[tid] = sid
 
-    with open(OUTPUT_FILE, "w", encoding="utf-8") as fout:
+    with open(output_file, "w", encoding="utf-8") as fout:
         for record in raw_lines:
             new_data = convert_json(record)
             tid = record.get("task_id")
@@ -257,3 +257,14 @@ def main():
             )
             new_data["facts"]["done"] = is_last
             fout.write(json.dumps(new_data) + "\n")
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", default=INPUT_FILE)
+    parser.add_argument("--output", default=None,
+        help="Output path (default: auto-derived from input)")
+    cli = parser.parse_args()
+    out = cli.output or cli.input.replace("_traces.jsonl", "_traces_translated.jsonl")
+    main(cli.input, out)
+    print(f"Translated: {cli.input} -> {out}")

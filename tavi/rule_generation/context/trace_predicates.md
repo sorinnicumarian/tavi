@@ -96,7 +96,6 @@ These are True **only at the step where the action was executed**:
 | `exec__cleanobject__{x}` | agent cleaned object x |
 | `exec__fillobjectwithliquid__{x}` | agent filled x with liquid |
 | `exec__emptyliquidfromobject__{x}` | agent emptied liquid from x |
-| `exec__pour` | agent poured liquid (generic, no object ID — use when detecting pour actions) |
 | `exec__sliceobject__{x}` | agent sliced object x |
 
 ---

@@ -20,7 +20,7 @@ load_dotenv()
 _SCENARIOS_DIR = os.path.join(os.path.dirname(__file__), "simulation", "scenarios")
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
-INPUT_FILE = os.path.join(_SCENARIOS_DIR, "safeagentbench_tasks", "safeagentbench_abstract_tasks.jsonl")
+INPUT_FILE = os.path.join(_SCENARIOS_DIR, "safeagentbench_tasks", "safeagentbench_long_horizon_tasks.jsonl")
 
 # Output trace mirrors the input name: safeagentbench_abstract_tasks → safeagentbench_abstract_traces
 _input_stem = Path(INPUT_FILE).stem.replace("_tasks", "")
@@ -39,6 +39,8 @@ if __name__ == "__main__":
     controller = Controller()
 
     MAX_TASKS = 10
+
+    sr_scores = []
 
     with jsonlines.open(INPUT_FILE) as reader:
         for idx, task in enumerate(reader):
@@ -81,12 +83,13 @@ if __name__ == "__main__":
                     task_record=task,
                 )
                 status = "completed"
-                print(f"Finished task {idx} with SR={sr_step}")
+                print(f"Finished task {idx} with SR={sr_step:.2f}")
 
             except Exception:
                 traceback.print_exc()
 
             finally:
+                sr_scores.append(sr_step)
                 _write({
                     "record_type": "task_end",
                     "task_id": idx,
@@ -97,3 +100,10 @@ if __name__ == "__main__":
                 _write({"record_type": "task_separator"})
 
     controller.stop()
+
+    avg_sr = sum(sr_scores) / len(sr_scores) if sr_scores else 0.0
+    print(f"\n========== RESULTS ==========")
+    print(f"Tasks run : {len(sr_scores)}")
+    for i, sr in enumerate(sr_scores):
+        print(f"  Task {i:02d}: SR={sr:.2f}")
+    print(f"Average SR: {avg_sr:.4f}")

@@ -81,6 +81,7 @@ def generate_ltl_templates_for_rules(
         temperature=temperature,
         max_output_tokens=max_output_tokens,
         thinking_budget=thinking_budget,
+        max_revision_rounds=0,
     )
 
     accepted: List[JsonDict] = []

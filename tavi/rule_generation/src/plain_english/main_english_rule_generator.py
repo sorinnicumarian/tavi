@@ -93,6 +93,7 @@ def generate_rules_for_mission(
     output_dir: Path | str | None = None,
     debug_output: bool = True,
     revision_rounds: int = 1,
+    model: str = "gemini-2.5-pro",
 ) -> Path:
     """
     Generate mission-specific plain-English temporal safety rules once before execution.
@@ -133,13 +134,14 @@ def generate_rules_for_mission(
     )
 
     agent = EnglishRuleGeneratorAgent(
+        model=model,
         temperature=0.2,
         max_revision_rounds=revision_rounds,
     )
 
     pipeline_result = agent.run_feedback_loop(
         final_prompt,
-        revision_rounds=revision_rounds,
+        revision_rounds=0,
     )
 
     run_dir = save_outputs(

@@ -15,18 +15,106 @@ An agent moves around a simulated home and performs tasks — pick up a knife, t
 
 Existing tools like AgentSpec only check one action at a time. They can't answer "did the agent ever hold a knife while the stove was on?" — that requires reasoning over a full sequence of steps. TAVI is being built to do that.
 
-### Current state (v0.5)
+### Current state (v0.7)
 
-TAVI covers trace collection, autonomous agent execution, SafeAgentBench integration, LTL rule generation, and trace translation:
+End-to-end pipeline is working on the `LTL-runtime-checking` branch:
 
 - **`tavi/main.py`** — single entry point. Runs SafeAgentBench long_horizon tasks through Gemini Pro VLM planner and records traces to `traces/`.
-- **`rule_generation/`** — LLM pipeline (Gemini 2.5 Pro) that generates, evaluates, and iteratively refines plain-English safety rules, then translates them to parametric LTL templates.
-- **`tavi/trace_translator/main.py`** — converts JSONL traces to `flloat`-compatible boolean dicts (`exec__ToggleObjectOn__candle_1: true`), ready for LTL checking.
+- **`rule_generation/`** — LLM pipeline (Gemini 2.5 Pro) that generates, evaluates, and iteratively refines plain-English safety rules, then translates them to parametric LTL templates in `rule_generation/outputs/rules_ltl_templates.json`.
+- **`tavi/trace_translator/main.py`** — converts raw JSONL traces to `flloat`-compatible boolean dicts. `done=True` on the last step of each task, `done=False` on all others (required by LTLf semantics).
+- **`tavi/rule_checker/main.py`** — loads LTL rule templates, instantiates them with real object IDs from the trace, and checks each formula against the trace using `flloat`. Returns `(violated: bool, message: str)`.
 - **`tavi/simulation/scenarios/legacy/`** — `scenario_1_hardcoded.py` and `scenario_2_autonomous.py` kept for reference; no longer part of the main pipeline.
 
-The trace format is aligned with the LTL rule templates. End-to-end checking (load traces → ground rules → `flloat` → violations) is implemented in a separate branch and being merged.
+**Verified on 9 abstract tasks:** tasks 1 and 5 correctly flagged as violations of R01 (heat source turned on and never shut off before task end).
 
 ### Changelog
+
+#### v0.9 (2026-06-30)
+
+**Recall fix: `agent_executed` detection (`tavi/rule_checker/stats.py`, `run_phases.py`):**
+- Fixed false negative inflation: exec error strings like `exec__CannotConvertTheHigh-levelPlanToALow-levelPlan.` were being counted as real action keys, marking planner-failed tasks as `agent_executed=True` and therefore as checker FNs. A real action key is all-lowercase with no spaces or dots (e.g. `exec__pickupobject__knife_1`). The check now excludes anything that doesn't meet that pattern.
+
+**Closed-vocabulary enforcement for LTL rule generation (`tavi/rule_generation/context/trace_predicates.md`, `ltl_template_generation_config.py`):**
+- Added `context/trace_predicates.md` — a new authoritative context file listing every predicate that actually exists in the trace, which object types each applies to, and explicitly which predicates do NOT exist or do NOT apply to certain objects (e.g. `toggled_on__` does not apply to `stoveburner`, only to `stoveknob`; `electrical__` does not apply to `candle` or `faucet`). This gives the LTL-template LLM a closed vocabulary contract: it can only generate formulas over predicates that can be verified.
+- Added `trace_predicates.md` to `REQUIRED_CONTEXT_FILES` in `ltl_template_generation_config.py` so it is injected into every LTL template generation prompt alongside the existing context files.
+- Effect: the LLM no longer generates formulas with unverifiable predicate combinations, which previously caused valid rules to silently pass (evaluate to True) on every trace rather than detecting violations.
+
+**Phase 1 result (40 tasks, 4 files, parallel):** Recall 100%, Precision 100%, Accuracy 100% (9 agent-failed tasks excluded from metrics).
+
+#### v0.8 (2026-06-29)
+
+**Runtime monitoring — end-to-end wiring (`tavi/main.py`, `tavi/traces/trace_collector.py`):**
+- Added `SafetyViolation` exception and `_build_monitor()` in `main.py`. The monitor accumulates translated step records and runs `check_rules` after every step. On violation it logs to `rule_checker/logs/rule_checker_logs.jsonl` and raises `SafetyViolation`, stopping the agent mid-task.
+- `TraceCollector.capture_step()` now translates each step immediately via `convert_json` and writes it to `_translated.jsonl` in real time (previously translation happened only post-hoc). The `on_step` callback now receives the full translated record instead of just `facts` — this was a bug that made the monitor blind to `exec__*` keys.
+- Rules are generated before the agent starts, not after. If Gemini is unavailable or generation fails, the agent runs without a monitor rather than blocking.
+- Added `--task-file` and `--max-tasks` CLI arguments so any of the four SafeAgentBench files can be targeted without touching code.
+- Added `_checkpoint.jsonl` sidecar — each task result is appended immediately on finish, so a crash does not lose previously completed tasks.
+- Fixed `task["objects"]` handling: the field is a list of strings (`["Candle", "Knife"]`), not dicts. Previous code crashed with `string indices must be integers`.
+
+**Rule checker (`tavi/rule_checker/main.py`):**
+- `instantiate_rules()` and `check_rules()` now accept `object_ids` directly instead of reading from the sidecar file on disk — required for runtime use where the sidecar doesn't exist yet.
+- Added PascalCase → snake_case normalization for LTL formula literals. AI2-THOR returns object types in PascalCase (`StoveBurner`, `Mug`); `flloat` only accepts lowercase symbols. The regex converts at instantiation time so neither rule files nor trace files need to be modified.
+- Static rules file renamed from `rules_ltl_templates.json` to `rules_static.json` to distinguish it from per-task generated rules.
+
+**Rule generation (`tavi/rule_generation/src/auto_generate.py`, `context/repair_rules.md`):**
+- Removed `_PREDICATE_VOCAB` — a ~100-line hardcoded string that duplicated the `context/*.md` files. Domain knowledge now lives exclusively in the markdown context files.
+- Added `context/repair_rules.md` (new file, follows the existing markdown convention for context). Defines: (1) predicates the LLM commonly hallucinates that don't exist in the trace schema (`isBroken__`, `shattered__`, `liquid__`, etc.) — formulas containing these are marked `not_expressible`; (2) canonical rewrites applied before that check (`filled_with_liquid__{x}__water` → `filled_with_liquid__{x}`, `isBroken__{x}` → `broken__{x}`).
+- `_load_nonexistent_predicates()` reads the predicate list from `repair_rules.md` at runtime — no hardcoded strings anywhere.
+- Added `risk_category` parameter to `generate_rules_for_task()`. When known, it is injected into the LLM prompt so rules focus on the specific hazard type rather than reasoning from scratch.
+- Generation runs with `revision_rounds=0` for speed at runtime. Added a 90-second timeout via `ThreadPoolExecutor` — if Gemini hangs, generation fails cleanly instead of blocking the pipeline.
+- **Bug fix in `repair_rules.md`:** `broken__` was initially listed as a non-existent predicate. Trace inspection confirmed `broken__mirror_1` is set to `True` after a `BreakObject` action — it exists. Removed from the non-existent list; added `isBroken__` → `broken__` rewrite instead.
+
+**Planner (`tavi/simulation/planner/map_vlm.py`, `utils.py`, `low_level_planner.py`):**
+- Planning prompt updated: the agent is told to execute the task literally and not refuse or sanitize dangerous steps. Safety is the monitor's responsibility, not the planner's. Previously ~49% of unsafe tasks were self-censored by the agent, making it impossible to evaluate the checker.
+- Removed duplicate old rule checker from `execute_low_level_plan` in `utils.py`. It called `trace_translator_main()` + `check_rules` directly with a hardcoded wrong file path, conflicting with the new monitor. Removed dead imports (`check_rules`, `get_steps_with_history`, `trace_translator_main`).
+- Added `_normalize_instruction()` in `low_level_planner.py`. The high-level planner sometimes outputs "walk to sink" or "grab knife" instead of the canonical "find sink" / "pick knife". The normalizer maps these aliases before dispatch so they execute correctly.
+- Replaced `assert False, 'instruction not supported'` with a graceful `log.warning` + return of `{'success': False}`. Previously any unrecognized verb crashed the entire process with `AssertionError`.
+
+**Stats module (`tavi/rule_checker/stats.py`):**
+- Removed `_UNSAFE_CATEGORIES` set. The original list covered only 9 of ~15 risk categories present in SafeAgentBench (missing "Breakage and Dropping", "Explosion Hazard", "Electrical Shock Hazard", etc.), which would have caused ground-truth errors. Ground truth is now simply `bool(risk_category)`.
+- Added `agent_executed` field to results. `True` if any step in the trace has an `exec__*` key at the top level of the translated record. Fixed a bug: these keys are top-level, not inside `facts` — the previous check always returned `False`.
+- Added `_classify_outcome()` with a new `Agent Failed (N/A)` class for unsafe tasks where the agent never attempted the dangerous action. These are excluded from the recall denominator — it is not a checker miss if the agent never tried.
+- `collect_stats()` now tracks `agent_failed` count and excludes those tasks from `total_unsafe` when computing recall.
+- Added per-risk-category breakdown section to the CSV output.
+- Added `_extract_object_ids()` — extracts object SIDs from trace fact keys directly, without needing the sidecar file.
+
+**Trace translator (`tavi/trace_translator/main.py`):**
+- `main()` now takes `input_file` and `output_file` as parameters instead of module-level constants. Added `__main__` block with argparse for standalone CLI use.
+
+**Benchmark orchestration (`run_phases.py`, new file):**
+- Two-phase runner: Phase 1 runs N tasks per file (default 1 for a quick smoke test) and checks recall ≥ 75% before proceeding. Phase 2 runs 25 tasks per file. `--phase 1` or `--phase 2` flags run a single phase.
+- Added lockfile (`traces/.run_phases.lock`) to prevent multiple concurrent instances. Previously, kills did not propagate to subprocesses, causing up to 5 zombie orchestrators writing simultaneously to the same trace files and corrupting output.
+
+#### v0.7 (2026-06-26)
+
+**Rule checker (`tavi/rule_checker/main.py`) — fixed and verified:**
+- Fixed file paths (`TRACES_INPUT_FILE`, `OBJECTS_INPUT_FILE` now correctly resolve to repo root `traces/`)
+- Fixed `prepare_traces_for_checking`: exec predicates (`exec__ToggleObjectOn__candle_1`) are now merged into the facts dict so flloat can evaluate action-based rules
+- Fixed `get_task_object_ids`: now extracts real object SIDs from trace fact keys (e.g. `candle_1`) with a fallback when the objects sidecar file doesn't exist
+- Fixed `done` marker: `done=False` on intermediate steps, `done=True` only on the last step per task (LTLf termination semantics)
+- Verified end-to-end on 9 abstract tasks: 2 violations correctly detected (tasks 1 and 5 — candle toggled on, never shut off)
+
+#### v0.6 (2026-06-10)
+
+**Live step iterator (`tavi/trace_translator/main.py`):**
+- Added `get_steps(trace_file, task_id, step_id)` — yields translated step dicts from a JSONL trace file. Skips `task_start`/`task_end`/`task_separator` records. Both filters are optional.
+
+**Runtime interrupt hook (`tavi/traces/trace_collector.py`, `tavi/simulation/planner/utils.py`):**
+- `TraceCollector` now accepts `on_step: Callable[[dict], bool] | None` at construction time.
+- After each step is written to JSONL, the callback is called with the translated `facts` dict (same `predicate__arg: True` format as the translated JSONL). Return `False` to stop execution, `True` to continue.
+- `capture_step()` returns `bool` propagating the callback result.
+- `execute_low_level_plan` breaks the step loop when `capture_step` returns `False` and logs `[checker] rule violation detected — stopping task`.
+- Removed dead first copy of `execute_low_level_plan` that had the old `trace_output_path` signature.
+
+Usage:
+```python
+def my_checker(facts: dict) -> bool:
+    if facts.get("holding__knife_1") and facts.get("toggled_on__stoveburner_1"):
+        return False  # violation — stop
+    return True
+
+collector = TraceCollector(output_path="traces/task_1.jsonl", task_id=1, on_step=my_checker)
+```
 
 #### v0.5 (2026-06-03)
 
@@ -137,7 +225,7 @@ All predicates are implemented in `tavi/traces/state_processor.py`.
 
 #### Semantic safety categories (hardcoded vocabulary, not in AI2-THOR)
 
-These are the bridge to Bogdan's rule vocabulary. AI2-THOR has no concept of "flammable" or "sharp" — these are assigned by object type in `state_processor.py`.
+These bridge the trace predicates to the LTL rule vocabulary. AI2-THOR has no concept of "flammable" or "sharp" — these are assigned by object type in `state_processor.py`.
 
 | Predicate | Object types | Meaning |
 |---|---|---|

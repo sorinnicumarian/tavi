@@ -27,6 +27,7 @@ REQUIRED_CONTEXT_FILES = [
     "ai2thor_object_types_and_categories.md",
     "hazards_types.md",
     "ltl_patterns.md",
+    "trace_predicates.md",
 ]
 
 

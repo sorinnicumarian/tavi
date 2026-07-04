@@ -151,26 +151,120 @@ def convert_json(old_data: dict) -> dict:
             else:
                 new_data[f"exec__{action_part}"] = True
 
-    # ==========================================================
-    # Add terminal marker
-    # ==========================================================
-    facts_dict["done"] = True
-
-    # Replace facts list with facts dictionary
+    # Replace facts list with facts dictionary (done marker set by caller)
     new_data["facts"] = facts_dict
 
     return new_data
+
+
+def get_steps_with_history(
+    trace_file=OUTPUT_FILE,
+    task_id=None,
+):
+    """
+    Yields (step, history) tuples.
+
+    history contains all previous steps for the same task,
+    including the current step.
+    """
+
+    histories = {}
+
+    with open(trace_file, "r", encoding="utf-8") as f:
+        for line in f:
+            record = json.loads(line)
+
+            if record.get("record_type") in (
+                "task_start",
+                "task_end",
+                "task_separator",
+            ):
+                continue
+
+            current_task = record.get("task_id")
+
+            if task_id is not None and current_task != task_id:
+                continue
+
+            if current_task not in histories:
+                histories[current_task] = []
+
+            histories[current_task].append(record)
+
+            # Return current step and all previous steps
+            yield record, histories[current_task].copy()
+            
+def get_steps(
+    trace_file: str = OUTPUT_FILE,
+    task_id: int | None = None,
+    step_id: int | None = None,
+):
+    """
+    Yields translated step dicts from a trace file.
+
+    Args:
+        trace_file: path to the translated JSONL (default: OUTPUT_FILE)
+        task_id:    if given, only yield steps for that task
+        step_id:    if given, only yield the step with that step_id
+                    (within the task_id filter if also set)
+
+    Yields dicts with keys: task_id, step_id, action, facts, outcome, …
+    Skips task_start / task_end / task_separator records.
+
+    Example:
+        for step in iter_steps(task_id=1, step_id=0):
+            print(step["facts"])
+    """
+    with open(trace_file, "r", encoding="utf-8") as f:
+        for line in f:
+            record = json.loads(line)
+            if record.get("record_type") in ("task_start", "task_end", "task_separator"):
+                continue
+            if task_id is not None and record.get("task_id") != task_id:
+                continue
+            if step_id is not None and record.get("step_id") != step_id:
+                continue
+            yield record
+
+
 # ----------------------------------------------------------------------
 # Example usage
 # ----------------------------------------------------------------------
-if __name__ == "__main__":
+def main(input_file: str = INPUT_FILE, output_file: str = OUTPUT_FILE):
 
-    with open(INPUT_FILE, "r", encoding="utf-8") as fin, \
-         open(OUTPUT_FILE, "w", encoding="utf-8") as fout:
+    with open(input_file, "r", encoding="utf-8") as fin:
+        raw_lines = [json.loads(line) for line in fin]
 
-        for line in fin:
-            old_data = json.loads(line)
+    # Find the last step_id per task so done=True is set only there
+    last_step: dict[int, int] = {}
+    for record in raw_lines:
+        if record.get("record_type") in ("task_start", "task_end", "task_separator"):
+            continue
+        tid = record.get("task_id")
+        sid = record.get("step_id", -1)
+        if tid is not None and sid > last_step.get(tid, -1):
+            last_step[tid] = sid
 
-            new_data = convert_json(old_data)
-
+    with open(output_file, "w", encoding="utf-8") as fout:
+        for record in raw_lines:
+            new_data = convert_json(record)
+            tid = record.get("task_id")
+            sid = record.get("step_id")
+            is_last = (
+                tid is not None
+                and sid is not None
+                and last_step.get(tid) == sid
+            )
+            new_data["facts"]["done"] = is_last
             fout.write(json.dumps(new_data) + "\n")
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", default=INPUT_FILE)
+    parser.add_argument("--output", default=None,
+        help="Output path (default: auto-derived from input)")
+    cli = parser.parse_args()
+    out = cli.output or cli.input.replace("_traces.jsonl", "_traces_translated.jsonl")
+    main(cli.input, out)
+    print(f"Translated: {cli.input} -> {out}")

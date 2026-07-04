@@ -17,6 +17,8 @@ from google import genai
 from google.genai import types
 import os
 
+import tavi.simulation.planner.config as planner_config
+
 _REPO_ROOT = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..")
 )
@@ -272,7 +274,7 @@ def call_gpt(
     prompt,
     system_prompt="You are a helpful assistant.",
     temperature=0.2,
-    max_tokens=1024
+    max_tokens=planner_config.GEMINI_MAX_TOKENS
 ):
 
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -286,7 +288,7 @@ USER:
 """
 
     response = client.models.generate_content(
-        model="gemini-2.5-flash",
+        model=planner_config.GEMINI_MODEL,
         contents=full_prompt,
         config=types.GenerateContentConfig(
             temperature=temperature,

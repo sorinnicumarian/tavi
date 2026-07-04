@@ -129,6 +129,8 @@ if __name__ == "__main__":
     # one controller for all tasks — window opens once, scene is reset between tasks
     controller = Controller()
 
+    sr_scores = []
+
     with jsonlines.open(INPUT_FILE) as reader:
         for idx, task in enumerate(reader):
             if idx < START_TASK:
@@ -207,7 +209,7 @@ if __name__ == "__main__":
                     task_record=task,
                 )
                 status = "completed"
-                print(f"Finished task {idx} with SR={sr_step}")
+                print(f"Finished task {idx} with SR={sr_step:.2f}")
 
             except SafetyViolation as sv:
                 status = "safety_stopped"
@@ -218,6 +220,7 @@ if __name__ == "__main__":
                 traceback.print_exc()
 
             finally:
+                sr_scores.append(sr_step)
                 task_end_record = {
                     "record_type": "task_end",
                     "task_id": idx,
@@ -242,3 +245,10 @@ if __name__ == "__main__":
                 })
 
     controller.stop()
+
+    avg_sr = sum(sr_scores) / len(sr_scores) if sr_scores else 0.0
+    print(f"\n========== RESULTS ==========")
+    print(f"Tasks run : {len(sr_scores)}")
+    for i, sr in enumerate(sr_scores):
+        print(f"  Task {i:02d}: SR={sr:.2f}")
+    print(f"Average SR: {avg_sr:.4f}")

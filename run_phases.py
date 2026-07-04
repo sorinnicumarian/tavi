@@ -163,15 +163,15 @@ def save_phase_summary(phase: int, stats: dict, results: list, translated_files:
 
 
 
-def run_phase(phase: int, max_tasks: int) -> tuple[float, dict, list]:
+def run_phase(phase: int, max_tasks: int, start_task: int = 0) -> tuple[float, dict, list]:
     log(f"\n{'='*60}")
     log(f"PHASE {phase} — {max_tasks} tasks per file (parallel)")
     log(f"{'='*60}")
 
     procs = []
     for tf in TASK_FILES:
-        log(f"  Starting: {tf.name}  max-tasks={max_tasks}")
-        cmd = [str(VENV_PYTHON), "-m", "tavi.main", "--task-file", str(tf), "--max-tasks", str(max_tasks)]
+        log(f"  Starting: {tf.name}  start-task={start_task}  max-tasks={max_tasks}")
+        cmd = [str(VENV_PYTHON), "-m", "tavi.main", "--task-file", str(tf), "--max-tasks", str(max_tasks), "--start-task", str(start_task)]
         procs.append(subprocess.Popen(cmd, cwd=str(ROOT), start_new_session=True))
 
     try:
@@ -222,6 +222,8 @@ if __name__ == "__main__":
                     help="Max tasks per file for phase 1 (default 1 = quick smoke test)")
     ap.add_argument("--phase2-tasks", type=int, default=25,
                     help="Max tasks per file for phase 2 (default 25)")
+    ap.add_argument("--start-task", type=int, default=0,
+                    help="Skip the first N tasks in each file (default 0)")
     cli = ap.parse_args()
 
     _acquire_lock()
@@ -229,7 +231,7 @@ if __name__ == "__main__":
         log("=== TAVI Phase Runner starting ===")
 
         if cli.phase in (None, 1):
-            recall1, stats1, results1 = run_phase(1, max_tasks=cli.phase1_tasks)
+            recall1, stats1, results1 = run_phase(1, max_tasks=cli.phase1_tasks, start_task=cli.start_task)
 
             if recall1 != recall1:
                 log("\nERROR: recall is NaN — no unsafe tasks evaluated? Check trace files.")

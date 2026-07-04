@@ -97,10 +97,13 @@ if __name__ == "__main__":
         help="Path to a safeagentbench_*_tasks.jsonl file")
     parser.add_argument("--max-tasks", type=int, default=10,
         help="Maximum number of tasks to run (default 10)")
+    parser.add_argument("--start-task", type=int, default=0,
+        help="Skip the first N tasks (default 0)")
     cli = parser.parse_args()
 
     INPUT_FILE = cli.task_file
     MAX_TASKS = cli.max_tasks
+    START_TASK = cli.start_task
     OUTPUT_FILE, OBJECTS_OUTPUT_FILE = _resolve_paths(INPUT_FILE)
     from pathlib import Path
     TRANSLATED_FILE = str(Path(OUTPUT_FILE).with_name(Path(OUTPUT_FILE).stem + "_translated.jsonl"))
@@ -128,7 +131,9 @@ if __name__ == "__main__":
 
     with jsonlines.open(INPUT_FILE) as reader:
         for idx, task in enumerate(reader):
-            if idx >= MAX_TASKS:
+            if idx < START_TASK:
+                continue
+            if idx >= START_TASK + MAX_TASKS:
                 break
 
             instruction = task.get("instruction")

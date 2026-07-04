@@ -52,3 +52,4 @@ traces/*.jsonl
 *.synctex.gz
 *.fdb_latexmk
 *.fls
+*.tdo

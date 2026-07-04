@@ -5,6 +5,7 @@
 \usepackage{float}
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage[textsize=footnotesize]{todonotes}
 
 \hypersetup{
     colorlinks=true,
@@ -69,119 +70,117 @@
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Introduction}}}
-% TODO: motivate the problem - per-step checking (AgentSpec) misses hazards that only show up
-% across a trajectory (e.g. an object made unsafe by an earlier action). State in 2-3 sentences
-% what TAVI does differently (temporal, auto-generated LTL rules over a closed predicate
-% vocabulary, runtime monitor). End with a one-sentence roadmap of the rest of the report.
+\todo[inline]{Motivate the problem: per-step checking (AgentSpec) misses hazards that only show
+up across a trajectory (e.g. an object made unsafe by an earlier action). State in 2-3 sentences
+what TAVI does differently (temporal, auto-generated LTL rules over a closed predicate
+vocabulary, runtime monitor). End with a one-sentence roadmap of the rest of the report.}
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Related Work}}}
-% TODO: one short paragraph each on:
-%  - AgentSpec: trigger/check/enforce DSL, per-step only, manually authored rules.
-%  - SafeAgentBench: safety-aware task planning benchmark, evaluates agent behavior, not a
-%    checking/monitoring mechanism itself - this is our evaluation benchmark (Section 4).
-%  - Embodied AI Agents (Fung et al.): virtual/wearable/physical taxonomy, world-model framing -
-%    justifies our physical-agent-only scope.
-%  - Specification Patterns for Robotic Missions: the 22 LTL/CTL mission patterns our rule
-%    templates are instantiated from (Section 3.3).
-%  - Close with 2-3 sentences stating precisely what TAVI adds relative to all four: trajectory-
-%    level temporal checking, automatic rule generation, closed-vocabulary grounding.
+\todo[inline]{One short paragraph each on: (1) AgentSpec -- trigger/check/enforce DSL, per-step
+only, manually authored rules; (2) SafeAgentBench -- safety-aware task planning benchmark,
+evaluates agent behavior, not a checking/monitoring mechanism itself, this is our evaluation
+benchmark (Section 4); (3) Embodied AI Agents (Fung et al.) -- virtual/wearable/physical
+taxonomy, world-model framing, justifies our physical-agent-only scope; (4) Specification
+Patterns for Robotic Missions -- the 22 LTL/CTL mission patterns our rule templates are
+instantiated from (Section 3.3). Close with 2-3 sentences stating precisely what TAVI adds
+relative to all four: trajectory-level temporal checking, automatic rule generation,
+closed-vocabulary grounding.}
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Method}}}
 
 {\color{Blue}{\subsection{Pipeline Overview}}}
-% TODO: describe the 5 conceptual modules (trace collector, rule generation, trace
-% translation/grounding, LTL checking, runtime monitor); state which are implemented end-to-end
-% vs. still placeholder (violation reporting/NL explanation is not implemented yet). Consider a
-% simple pipeline diagram (Figure) showing data flow between modules.
+\todo[inline]{Describe the 5 conceptual modules (trace collector, rule generation, trace
+translation/grounding, LTL checking, runtime monitor); state which are implemented end-to-end
+vs. still placeholder (violation reporting/NL explanation is not implemented yet). Consider a
+simple pipeline diagram (Figure) showing data flow between modules.}
 
 {\color{Blue}{\subsection{Trace Collection and Predicate Vocabulary}}}
-% TODO: describe the JSONL trace schema (step id, timestamp, action, pre/post state,
-% observation, propositions, llm_call, tool_calls, outcome). Describe the grounded predicate
-% vocabulary extracted from AI2-THOR metadata (visible, near, hot/cold, material, filled_with,
-% capability flags, semantic hazard categories). Explain the closed-vocabulary contract
-% (trace_predicates.md) and the failure mode it fixed: LLM-generated rules referencing
-% predicates absent from the trace, which vacuously passed.
+\todo[inline]{Describe the JSONL trace schema (step id, timestamp, action, pre/post state,
+observation, propositions, llm\_call, tool\_calls, outcome). Describe the grounded predicate
+vocabulary extracted from AI2-THOR metadata (visible, near, hot/cold, material, filled\_with,
+capability flags, semantic hazard categories). Explain the closed-vocabulary contract
+(trace\_predicates.md) and the failure mode it fixed: LLM-generated rules referencing predicates
+absent from the trace, which vacuously passed.}
 
 {\color{Blue}{\subsection{Rule Generation}}}
-% TODO: describe online, per-task, cached LTL rule generation via Gemini 2.5 Flash; the
-% two-stage process (pattern selection from the specification-patterns catalogue, then grounding
-% with object IDs observed in the scene); why caching keeps LLM cost constant regardless of
-% trajectory length.
+\todo[inline]{Describe online, per-task, cached LTL rule generation via Gemini 2.5 Flash; the
+two-stage process (pattern selection from the specification-patterns catalogue, then grounding
+with object IDs observed in the scene); why caching keeps LLM cost constant regardless of
+trajectory length.}
 
 {\color{Blue}{\subsection{LTL Checking}}}
-% TODO: describe flloat/LTLf checking mechanics, what "violation" means operationally over a
-% finite trace, and how the runtime monitor (main.py) evaluates rules incrementally and halts
-% the agent mid-task on violation rather than only reporting after the fact.
+\todo[inline]{Describe flloat/LTLf checking mechanics, what ``violation'' means operationally
+over a finite trace, and how the runtime monitor (main.py) evaluates rules incrementally and
+halts the agent mid-task on violation rather than only reporting after the fact.}
 
 {\color{Blue}{\subsection{Implementation Notes}}}
-% TODO: pick 2-3 concrete engineering details worth reporting:
-%  - agent_executed detection fix (planner error strings no longer counted as executed actions).
-%  - parallel benchmark runner (run_phases.py, 4 files concurrently).
-%  - Gemini Flash vs Pro tradeoff on long-horizon tasks (SR 0.86 vs 0.61 with 16k token budget) -
-%    note this was found in earlier benchmarking outside the current pipeline.
+\todo[inline]{Pick 2-3 concrete engineering details worth reporting: the agent\_executed
+detection fix (planner error strings no longer counted as executed actions); the parallel
+benchmark runner (run\_phases.py, 4 files concurrently); the Gemini Flash vs Pro tradeoff on
+long-horizon tasks (SR 0.86 vs 0.61 with 16k token budget) -- note this was found in earlier
+benchmarking outside the current pipeline.}
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Evaluation Setup}}}
-% TODO: describe SafeAgentBench (750 tasks, 10 hazard types), the 4 task categories used
-% (unsafe/safe/abstract/long-horizon) with 1-line definitions, sample size (100 tasks, 25 per
-% category), and the outcome taxonomy (TP/TN/FN/FP/Agent Avoided Action/No Trace) with 1-line
-% definitions of each as a table. Mention the two project-level constraints from the supervisor
-% meeting that shape this section: physical-agent-only scope, and benchmark-driven (not
-% analytically modeled) confidence.
+\todo[inline]{Describe SafeAgentBench (750 tasks, 10 hazard types), the 4 task categories used
+(unsafe/safe/abstract/long-horizon) with 1-line definitions, sample size (100 tasks, 25 per
+category), and the outcome taxonomy (TP/TN/FN/FP/Agent Avoided Action/No Trace) with 1-line
+definitions of each as a table. Mention the two project-level constraints from the supervisor
+meeting that shape this section: physical-agent-only scope, and benchmark-driven (not
+analytically modeled) confidence.}
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Results}}}
-% TODO: insert the 100-task results table (TP 23/39, TN 50/50, FN 16, FP 0, Agent Avoided
-% Action 2, No Trace 9) and headline metrics (82% accuracy, 59% recall, 100% precision). Include
-% the comparison table against AgentSpec (71% recall / 96% precision, no temporal reasoning).
-% Also report the earlier 40-task run (92.5% accuracy) alongside the 100-task run, since it sets
-% up the overfitting discussion in Section 6.
+\todo[inline]{Insert the 100-task results table (TP 23/39, TN 50/50, FN 16, FP 0, Agent Avoided
+Action 2, No Trace 9) and headline metrics (82\% accuracy, 59\% recall, 100\% precision).
+Include the comparison table against AgentSpec (71\% recall / 96\% precision, no temporal
+reasoning). Also report the earlier 40-task run (92.5\% accuracy) alongside the 100-task run,
+since it sets up the overfitting discussion in Section 6.}
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Discussion and Limitations}}}
-% TODO: cover -
-%  - overfitting as task diversity increases (92.5% on 40 tasks -> 82% on 100 tasks);
-%  - recall bottleneck: 16 missed unsafe tasks despite 100% precision, worst on the abstract
-%    category where the hazard is described indirectly;
-%  - the 9 no-trace tasks are agent/planner crashes upstream of the checker, not checker
-%    failures, but reduce effective coverage;
-%  - confidence intervals must be benchmark-driven per supervisor constraint - not yet exposed,
-%    pipeline currently reports a boolean satisfied/violated verdict only;
-%  - scope is limited to physical embodied agents per project constraints.
+\todo[inline]{Cover: overfitting as task diversity increases (92.5\% on 40 tasks to 82\% on 100
+tasks); the recall bottleneck of 16 missed unsafe tasks despite 100\% precision, worst on the
+abstract category where the hazard is described indirectly; the 9 no-trace tasks being
+agent/planner crashes upstream of the checker (not checker failures) that still reduce effective
+coverage; confidence intervals must be benchmark-driven per supervisor constraint and are not
+yet exposed (pipeline currently reports a boolean satisfied/violated verdict only); and the scope
+being limited to physical embodied agents per project constraints.}
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Conclusion and Next Steps}}}
-% TODO: one paragraph summarizing the contribution and headline results, then concrete next
-% steps:
-%  - diagnose specific abstract/long-horizon failure cases (vocabulary too narrow vs. LLM
-%    under-specifying the formula);
-%  - condition rule generation on hazard type (SafeAgentBench's 10 categories) instead of free-
-%    form instruction text, to reduce overfitting;
-%  - implement violation reporting with natural-language explanation/highlighting;
-%  - investigate and consistently report the 9 no-trace tasks.
+\todo[inline]{One paragraph summarizing the contribution and headline results, then concrete
+next steps: diagnose specific abstract/long-horizon failure cases (vocabulary too narrow vs. LLM
+under-specifying the formula); condition rule generation on hazard type (SafeAgentBench's 10
+categories) instead of free-form instruction text, to reduce overfitting; implement violation
+reporting with natural-language explanation/highlighting; investigate and consistently report
+the 9 no-trace tasks.}
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{References}}}
 
-% Papers in Docs/Papers/ - cite these first.
-% TODO: fill in full bibliographic details (authors, venue, year, pages) for each before submission.
+\todo[inline]{Papers in Docs/Papers/ -- cite these first. Fill in full bibliographic details
+(authors, venue, year, pages) for each before submission.}
 \begin{enumerate}
-    \item AgentSpec: Customizable Runtime Enforcement for Safe and Reliable LLM Agents. % TODO: authors, venue, year
-    \item SafeAgentBench: a benchmark for safety-aware task planning of embodied LLM agents. % TODO: authors, venue, year
-    \item Embodied AI Agents: Modeling the World. % TODO: authors (Fung et al.), venue, year
-    \item Specification Patterns for Robotic Missions. % TODO: authors, venue, year
+    \item AgentSpec: Customizable Runtime Enforcement for Safe and Reliable LLM Agents. \todo{authors, venue, year}
+    \item SafeAgentBench: a benchmark for safety-aware task planning of embodied LLM agents. \todo{authors, venue, year}
+    \item Embodied AI Agents: Modeling the World. \todo{authors (Fung et al.), venue, year}
+    \item Specification Patterns for Robotic Missions. \todo{authors, venue, year}
 \end{enumerate}
 
-% Other sources researched during the project (tools, libraries, frameworks) - add as used.
-% TODO: add full citation/URL for each we actually relied on, e.g.:
+\todo[inline]{Other sources researched during the project (tools, libraries, frameworks) -- add
+as used, with full citation/URL for each we actually relied on.}
 \begin{itemize}
-    \item AI2-THOR simulation environment. % TODO: paper/URL
-    \item LangGraph agent framework. % TODO: docs/URL
-    \item flloat LTLf checking library. % TODO: paper/URL
-    \item ProbGuard - LangChain-based probabilistic runtime monitoring (mentioned 2026-04-01 meeting; confirm if actually used or drop). % TODO
-    \item Gemini 2.5 Flash / Pro model documentation. % TODO: URL
+    \item AI2-THOR simulation environment. \todo{paper/URL}
+    \item LangGraph agent framework. \todo{docs/URL}
+    \item flloat LTLf checking library. \todo{paper/URL}
+    \item ProbGuard -- LangChain-based probabilistic runtime monitoring. \todo{mentioned
+    2026-04-01 meeting; confirm if actually used or drop}
+    \item Gemini 2.5 Flash / Pro model documentation. \todo{URL}
 \end{itemize}
+
+\listoftodos
 
 \end{document}

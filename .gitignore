@@ -35,3 +35,20 @@ tavi/rule_checker/logs/*
 traces/run_phases.log
 run_all.log
 traces/*.jsonl
+
+# LaTeX auxiliary files
+*.aux
+*.bbl
+*.blg
+*.brf
+*.idx
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.out
+*.toc
+*.synctex.gz
+*.fdb_latexmk
+*.fls

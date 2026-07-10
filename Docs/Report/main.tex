@@ -1,0 +1,187 @@
+\documentclass [11pt,twoside]{article}
+\input{commandsFile}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    urlcolor=black,
+    citecolor=black
+}
+
+\graphicspath{{Images/}}
+\begin{document}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt}
+
+%TITLE PAGE
+
+\begin{titlepage}
+
+{\begin{table}[t!]
+\centering
+\begin{tabu} to \textwidth { X[1.3,r,p] X[1.7,l,p] }
+\textcolor{Blue}
+{\textbf{\small{Hoxha Eldi, Prunescu Bogdan-Andrei, Marian Sorin-Nicu}}} & \includegraphics[scale=0.5]{Images/PolimiLogo}
+\end{tabu}
+\end{table}}~\\ [7cm]
+
+\begin{flushleft}
+
+{\textcolor{Blue}{\textbf{\Huge{TAVI: Trajectory-Level Verification of Embodied AI Agents via LTL}}}} \\ [1cm]
+
+\end{flushleft}
+
+\end{titlepage}
+
+\begin{table}[h!]
+\begin{tabu} to \textwidth { X[0.3,r,p] X[0.7,l,p] }
+\hline
+
+\textbf{Deliverable:} & Brief Scientific Report \\
+\textbf{Title:} & TAVI: Trajectory-Level Verification of Embodied AI Agents via LTL \\
+\textbf{Authors:} & Hoxha Eldi, Prunescu Bogdan-Andrei, Marian Sorin-Nicu
+ \\
+\textbf{Supervisor:} & Matteo Camilli \\
+\textbf{Version:} & 1 \\
+\textbf{Date:} & % TODO
+\\
+\hline
+\end{tabu}
+\end{table}
+
+\setcounter{page}{2}
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+\newpage
+\addcontentsline{toc}{section}{Table of Contents}
+\tableofcontents
+\newpage
+\addcontentsline{toc}{section}{List of Figures}
+\listoffigures
+\addcontentsline{toc}{section}{List of Tables}
+\listoftables
+\newpage
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Introduction}}}
+% TODO: motivate the problem - per-step checking (AgentSpec) misses hazards that only show up
+% across a trajectory (e.g. an object made unsafe by an earlier action). State in 2-3 sentences
+% what TAVI does differently (temporal, auto-generated LTL rules over a closed predicate
+% vocabulary, runtime monitor). End with a one-sentence roadmap of the rest of the report.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Related Work}}}
+% TODO: one short paragraph each on:
+%  - AgentSpec: trigger/check/enforce DSL, per-step only, manually authored rules.
+%  - SafeAgentBench: safety-aware task planning benchmark, evaluates agent behavior, not a
+%    checking/monitoring mechanism itself - this is our evaluation benchmark (Section 4).
+%  - Embodied AI Agents (Fung et al.): virtual/wearable/physical taxonomy, world-model framing -
+%    justifies our physical-agent-only scope.
+%  - Specification Patterns for Robotic Missions: the 22 LTL/CTL mission patterns our rule
+%    templates are instantiated from (Section 3.3).
+%  - Close with 2-3 sentences stating precisely what TAVI adds relative to all four: trajectory-
+%    level temporal checking, automatic rule generation, closed-vocabulary grounding.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Method}}}
+
+{\color{Blue}{\subsection{Pipeline Overview}}}
+% TODO: describe the 5 conceptual modules (trace collector, rule generation, trace
+% translation/grounding, LTL checking, runtime monitor); state which are implemented end-to-end
+% vs. still placeholder (violation reporting/NL explanation is not implemented yet). Consider a
+% simple pipeline diagram (Figure) showing data flow between modules.
+
+{\color{Blue}{\subsection{Trace Collection and Predicate Vocabulary}}}
+% TODO: describe the JSONL trace schema (step id, timestamp, action, pre/post state,
+% observation, propositions, llm_call, tool_calls, outcome). Describe the grounded predicate
+% vocabulary extracted from AI2-THOR metadata (visible, near, hot/cold, material, filled_with,
+% capability flags, semantic hazard categories). Explain the closed-vocabulary contract
+% (trace_predicates.md) and the failure mode it fixed: LLM-generated rules referencing
+% predicates absent from the trace, which vacuously passed.
+
+{\color{Blue}{\subsection{Rule Generation}}}
+% TODO: describe online, per-task, cached LTL rule generation via Gemini 2.5 Flash; the
+% two-stage process (pattern selection from the specification-patterns catalogue, then grounding
+% with object IDs observed in the scene); why caching keeps LLM cost constant regardless of
+% trajectory length.
+
+{\color{Blue}{\subsection{LTL Checking}}}
+% TODO: describe flloat/LTLf checking mechanics, what "violation" means operationally over a
+% finite trace, and how the runtime monitor (main.py) evaluates rules incrementally and halts
+% the agent mid-task on violation rather than only reporting after the fact.
+
+{\color{Blue}{\subsection{Implementation Notes}}}
+% TODO: pick 2-3 concrete engineering details worth reporting:
+%  - agent_executed detection fix (planner error strings no longer counted as executed actions).
+%  - parallel benchmark runner (run_phases.py, 4 files concurrently).
+%  - Gemini Flash vs Pro tradeoff on long-horizon tasks (SR 0.86 vs 0.61 with 16k token budget) -
+%    note this was found in earlier benchmarking outside the current pipeline.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Evaluation Setup}}}
+% TODO: describe SafeAgentBench (750 tasks, 10 hazard types), the 4 task categories used
+% (unsafe/safe/abstract/long-horizon) with 1-line definitions, sample size (100 tasks, 25 per
+% category), and the outcome taxonomy (TP/TN/FN/FP/Agent Avoided Action/No Trace) with 1-line
+% definitions of each as a table. Mention the two project-level constraints from the supervisor
+% meeting that shape this section: physical-agent-only scope, and benchmark-driven (not
+% analytically modeled) confidence.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Results}}}
+% TODO: insert the 100-task results table (TP 23/39, TN 50/50, FN 16, FP 0, Agent Avoided
+% Action 2, No Trace 9) and headline metrics (82% accuracy, 59% recall, 100% precision). Include
+% the comparison table against AgentSpec (71% recall / 96% precision, no temporal reasoning).
+% Also report the earlier 40-task run (92.5% accuracy) alongside the 100-task run, since it sets
+% up the overfitting discussion in Section 6.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Discussion and Limitations}}}
+% TODO: cover -
+%  - overfitting as task diversity increases (92.5% on 40 tasks -> 82% on 100 tasks);
+%  - recall bottleneck: 16 missed unsafe tasks despite 100% precision, worst on the abstract
+%    category where the hazard is described indirectly;
+%  - the 9 no-trace tasks are agent/planner crashes upstream of the checker, not checker
+%    failures, but reduce effective coverage;
+%  - confidence intervals must be benchmark-driven per supervisor constraint - not yet exposed,
+%    pipeline currently reports a boolean satisfied/violated verdict only;
+%  - scope is limited to physical embodied agents per project constraints.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Conclusion and Next Steps}}}
+% TODO: one paragraph summarizing the contribution and headline results, then concrete next
+% steps:
+%  - diagnose specific abstract/long-horizon failure cases (vocabulary too narrow vs. LLM
+%    under-specifying the formula);
+%  - condition rule generation on hazard type (SafeAgentBench's 10 categories) instead of free-
+%    form instruction text, to reduce overfitting;
+%  - implement violation reporting with natural-language explanation/highlighting;
+%  - investigate and consistently report the 9 no-trace tasks.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{References}}}
+
+% Papers in Docs/Papers/ - cite these first.
+% TODO: fill in full bibliographic details (authors, venue, year, pages) for each before submission.
+\begin{enumerate}
+    \item AgentSpec: Customizable Runtime Enforcement for Safe and Reliable LLM Agents. % TODO: authors, venue, year
+    \item SafeAgentBench: a benchmark for safety-aware task planning of embodied LLM agents. % TODO: authors, venue, year
+    \item Embodied AI Agents: Modeling the World. % TODO: authors (Fung et al.), venue, year
+    \item Specification Patterns for Robotic Missions. % TODO: authors, venue, year
+\end{enumerate}
+
+% Other sources researched during the project (tools, libraries, frameworks) - add as used.
+% TODO: add full citation/URL for each we actually relied on, e.g.:
+\begin{itemize}
+    \item AI2-THOR simulation environment. % TODO: paper/URL
+    \item LangGraph agent framework. % TODO: docs/URL
+    \item flloat LTLf checking library. % TODO: paper/URL
+    \item ProbGuard - LangChain-based probabilistic runtime monitoring (mentioned 2026-04-01 meeting; confirm if actually used or drop). % TODO
+    \item Gemini 2.5 Flash / Pro model documentation. % TODO: URL
+\end{itemize}
+
+\end{document}

@@ -68,6 +68,10 @@
 \newpage
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Abstract}}}
+% TODO: small description of what we have done, what the contribution is, and what the results are.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Introduction}}}
 % TODO: motivate the problem - per-step checking (AgentSpec) misses hazards that only show up
 % across a trajectory (e.g. an object made unsafe by an earlier action). State in 2-3 sentences
@@ -88,13 +92,19 @@
 %    level temporal checking, automatic rule generation, closed-vocabulary grounding.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
-{\color{Blue}{\section{Method}}}
+{\color{Blue}{\section{Proposed Solution}}}
+% TODO: here we should describe an high-level overview of the proposed solution, including the main components and their interactions. 
+% We can also include a diagram to illustrate the architecture and data flow. Shouldn't be longer than 1 page, 
+% and should be written in a way that is understandable to someone who is not familiar with the project. 
 
+% Maybe here we can add the pipeline overview
 {\color{Blue}{\subsection{Pipeline Overview}}}
 % TODO: describe the 5 conceptual modules (trace collector, rule generation, trace
 % translation/grounding, LTL checking, runtime monitor); state which are implemented end-to-end
 % vs. still placeholder (violation reporting/NL explanation is not implemented yet). Consider a
 % simple pipeline diagram (Figure) showing data flow between modules.
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Implementation Details}}}
 
 {\color{Blue}{\subsection{Trace Collection and Predicate Vocabulary}}}
 % TODO: describe the JSONL trace schema (step id, timestamp, action, pre/post state,
@@ -131,6 +141,8 @@
 % meeting that shape this section: physical-agent-only scope, and benchmark-driven (not
 % analytically modeled) confidence.
 
+% Shouldn't be longer than 1 paragraph.
+
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Results}}}
 % TODO: insert the 100-task results table (TP 23/39, TN 50/50, FN 16, FP 0, Agent Avoided
@@ -138,6 +150,8 @@
 % the comparison table against AgentSpec (71% recall / 96% precision, no temporal reasoning).
 % Also report the earlier 40-task run (92.5% accuracy) alongside the 100-task run, since it sets
 % up the overfitting discussion in Section 6.
+
+% Shouldn't be longer than 1 paragraph.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Discussion and Limitations}}}
@@ -151,6 +165,8 @@
 %    pipeline currently reports a boolean satisfied/violated verdict only;
 %  - scope is limited to physical embodied agents per project constraints.
 
+% Shouldn't be longer than 1 paragraph.
+
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Conclusion and Next Steps}}}
 % TODO: one paragraph summarizing the contribution and headline results, then concrete next
@@ -161,6 +177,8 @@
 %    form instruction text, to reduce overfitting;
 %  - implement violation reporting with natural-language explanation/highlighting;
 %  - investigate and consistently report the 9 no-trace tasks.
+
+% Shouldn't be longer than 1 paragraph.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{References}}}

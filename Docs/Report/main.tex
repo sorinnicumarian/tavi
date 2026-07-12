@@ -96,6 +96,12 @@
 % TODO: here we should describe an high-level overview of the proposed solution, including the main components and their interactions. 
 % We can also include a diagram to illustrate the architecture and data flow. Shouldn't be longer than 1 page, 
 % and should be written in a way that is understandable to someone who is not familiar with the project. 
+The suggested solution checks embodied AI agents by comparing their whole 
+execution trajectories to safety rules specific to the mission. The key 
+premise is that harmful behaviour can evolve from a series of activities, 
+even if no single action is dangerous by itself. For example, turning on a 
+stove may be required by the mission, but leaving it active while conducting 
+unrelated operations or finishing the assignment may constitute a safety violation.
 
 % Maybe here we can add the pipeline overview
 {\color{Blue}{\subsection{Pipeline Overview}}}
@@ -103,6 +109,44 @@
 % translation/grounding, LTL checking, runtime monitor); state which are implemented end-to-end
 % vs. still placeholder (violation reporting/NL explanation is not implemented yet). Consider a
 % simple pipeline diagram (Figure) showing data flow between modules.
+
+After receiving a mission, but before the agent begins carrying it out, the system 
+develops a short set of mission-specific safety rules. The mission description is 
+analyzed alongside contextual information regarding AI2-THOR operations, object 
+properties, hazard categories (TODO cite), and temporal specification patterns (TODO cite). 
+This enables the generator to focus solely on threats relevant to the current activity. 
+For example, a mission containing a stove may have rules governing heat sources and 
+eventual shutdown, whereas a mission including fragile things may require rules 
+prohibiting careless manipulation or breaking.
+
+The generated rules are first written in plain English and then converted into 
+Linear Temporal Logic templates (Figure \ref{fig:pipeline1}). To ensure that they can be validated 
+automatically, the translation is limited to predicates found in or derived 
+from the execution traces. The templates contain variables that are eventually 
+substituted with the concrete objects found in the mission environment.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{Images/proposed_solution/pipeline1.pdf}
+    \caption{Mission-specific safety rule generation.}
+    \label{fig:pipeline1}
+\end{figure}
+
+After the rules are generated, the agent executes the task in AI2-THOR (Figure \ref{fig:pipeline2}). 
+Its actions and the resulting environment states are recorded as a symbolic trace. 
+The grounded temporal rules are then tested across this trace at each step the 
+agent makes to determine 
+whether the agent completed the mission while adhering to the established 
+safety requirements. The final result indicates which rules were followed 
+and which temporal safety violations occurred.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{Images/proposed_solution/pipeline2.pdf}
+    \caption{Agent execution and temporal trace verification.}
+    \label{fig:pipeline2}
+\end{figure}
+
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Implementation Details}}}
 

@@ -103,6 +103,7 @@
 % capability flags, semantic hazard categories). Explain the closed-vocabulary contract
 % (trace_predicates.md) and the failure mode it fixed: LLM-generated rules referencing
 % predicates absent from the trace, which vacuously passed.
+\input{chapters/chapter_3/chapter_3.2.tex}
 
 {\color{Blue}{\subsection{Rule Generation}}}
 % TODO: describe online, per-task, cached LTL rule generation via Gemini 2.5 Flash; the
@@ -114,6 +115,7 @@
 % TODO: describe flloat/LTLf checking mechanics, what "violation" means operationally over a
 % finite trace, and how the runtime monitor (main.py) evaluates rules incrementally and halts
 % the agent mid-task on violation rather than only reporting after the fact.
+\input{chapters/chapter_3/chapter_3.4.tex}
 
 {\color{Blue}{\subsection{Implementation Notes}}}
 % TODO: pick 2-3 concrete engineering details worth reporting:

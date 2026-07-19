@@ -48,6 +48,7 @@
  \\
 \textbf{Supervisor:} & Matteo Camilli \\
 \textbf{Version:} & 1 \\
+\textbf{Repository:} & \url{https://github.com/sorinnicumarian/tavi} \\
 \textbf{Date:} & % TODO
 \\
 \hline
@@ -68,11 +69,17 @@
 \newpage
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Abstract}}}
+% TODO: small description of what we have done, what the contribution is, and what the results are.
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Introduction}}}
 % TODO: motivate the problem - per-step checking (AgentSpec) misses hazards that only show up
 % across a trajectory (e.g. an object made unsafe by an earlier action). State in 2-3 sentences
 % what TAVI does differently (temporal, auto-generated LTL rules over a closed predicate
 % vocabulary, runtime monitor). End with a one-sentence roadmap of the rest of the report.
+% Also mention/footnote the GitHub repo (already linked in the deliverable-info table on the
+% front page): https://github.com/sorinnicumarian/tavi
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Related Work}}}
@@ -88,13 +95,63 @@
 %    level temporal checking, automatic rule generation, closed-vocabulary grounding.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
-{\color{Blue}{\section{Method}}}
+{\color{Blue}{\section{Proposed Solution}}}
+% TODO: here we should describe an high-level overview of the proposed solution, including the main components and their interactions. 
+% We can also include a diagram to illustrate the architecture and data flow. Shouldn't be longer than 1 page, 
+% and should be written in a way that is understandable to someone who is not familiar with the project. 
+The suggested solution checks embodied AI agents by comparing their whole 
+execution trajectories to safety rules specific to the mission. The key 
+premise is that harmful behaviour can evolve from a series of activities, 
+even if no single action is dangerous by itself. For example, turning on a 
+stove may be required by the mission, but leaving it active while conducting 
+unrelated operations or finishing the assignment may constitute a safety violation.
 
+% Maybe here we can add the pipeline overview
 {\color{Blue}{\subsection{Pipeline Overview}}}
 % TODO: describe the 5 conceptual modules (trace collector, rule generation, trace
 % translation/grounding, LTL checking, runtime monitor); state which are implemented end-to-end
 % vs. still placeholder (violation reporting/NL explanation is not implemented yet). Consider a
 % simple pipeline diagram (Figure) showing data flow between modules.
+
+After receiving a mission, but before the agent begins carrying it out, the system 
+develops a short set of mission-specific safety rules. The mission description is 
+analyzed alongside contextual information regarding AI2-THOR operations, object 
+properties, hazard categories (TODO cite), and temporal specification patterns (TODO cite). 
+This enables the generator to focus solely on threats relevant to the current activity. 
+For example, a mission containing a stove may have rules governing heat sources and 
+eventual shutdown, whereas a mission including fragile things may require rules 
+prohibiting careless manipulation or breaking.
+
+The generated rules are first written in plain English and then converted into 
+Linear Temporal Logic templates (Figure \ref{fig:pipeline1}). To ensure that they can be validated 
+automatically, the translation is limited to predicates found in or derived 
+from the execution traces. The templates contain variables that are eventually 
+substituted with the concrete objects found in the mission environment.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{Images/proposed_solution/pipeline1.pdf}
+    \caption{Mission-specific safety rule generation.}
+    \label{fig:pipeline1}
+\end{figure}
+
+After the rules are generated, the agent executes the task in AI2-THOR (Figure \ref{fig:pipeline2}). 
+Its actions and the resulting environment states are recorded as a symbolic trace. 
+The grounded temporal rules are then tested across this trace at each step the 
+agent makes to determine 
+whether the agent completed the mission while adhering to the established 
+safety requirements. The final result indicates which rules were followed 
+and which temporal safety violations occurred.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\linewidth]{Images/proposed_solution/pipeline2.pdf}
+    \caption{Agent execution and temporal trace verification.}
+    \label{fig:pipeline2}
+\end{figure}
+
+%------------------------------------------------------------------------------------------------------------------------------------------------
+{\color{Blue}{\section{Implementation Details}}}
 
 {\color{Blue}{\subsection{Trace Collection and Predicate Vocabulary}}}
 % TODO: describe the JSONL trace schema (step id, timestamp, action, pre/post state,
@@ -126,35 +183,95 @@
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Evaluation Setup}}}
-% TODO: describe SafeAgentBench (750 tasks, 10 hazard types), the 4 task categories used
-% (unsafe/safe/abstract/long-horizon) with 1-line definitions, sample size (100 tasks, 25 per
-% category), and the outcome taxonomy (TP/TN/FN/FP/Agent Avoided Action/No Trace) with 1-line
-% definitions of each as a table. Mention the two project-level constraints from the supervisor
-% meeting that shape this section: physical-agent-only scope, and benchmark-driven (not
-% analytically modeled) confidence.
+In order to evaluate our solution we have used SafeAgentBench as benchmark, consisting of 750 executable tasks, 4 categories, 10 hazard types, put together for AI2-THOR-based
+embodied environment (SafeAgentEnv). We have selected a subset of 100 tasks from the SafeAgentBench dataset, 25 for each category, in order to be able to run our evaluation tests in a timely manner. The categories can be seen below:
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{ll}
+        \hline
+        \textbf{Category} & \textbf{What it isolates} \\
+        \hline
+        Unsafe & Tasks explicitly designed to be dangerous (measures recall/TP) \\
+        Safe & Tasks safe by design (measures false-alarm rate/FP) \\
+        Abstract & Unsafe tasks phrased indirectly, hazard not explicitly named \\
+        Long-horizon & Multi-step safe tasks with time constraints \\
+        \hline
+    \end{tabular}
+    \caption{SafeAgentBench task categories used in this evaluation.}
+    \label{tab:task-categories}
+\end{table}
+
+Every task falls into one of 6 possible outcomes (the counted breakdown is given in Table~\ref{tab:results-100task} in Section~7). Note that the first 4 (True Positive, True Negative, False Negative, False Positive) are actually taken into consideration for our results' calculation, while the last 2 (Agent Avoided Action, No Trace) are not counted in the metrics, but are still reported for completeness. Avoided Action occurs because the LLM behind the agent decides not to attempt a dangerous action on its own reasoning, based on the security rules that it was given.
+The "No trace" outcome can occur if the agent or planner has crashed unexpectedly before the first step of the task, and thus no execution steps were created.
+
+Although the long-term goal is to verify physical embodied agents, evaluation is limited to the simulated
+SafeAgentEnv environment. The simulation is controlled and supports running many tasks quickly, which
+keeps evaluation and development costs down. The benchmark output is a Boolean satisfied/violated
+verdict.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Results}}}
-% TODO: insert the 100-task results table (TP 23/39, TN 50/50, FN 16, FP 0, Agent Avoided
-% Action 2, No Trace 9) and headline metrics (82% accuracy, 59% recall, 100% precision). Include
-% the comparison table against AgentSpec (71% recall / 96% precision, no temporal reasoning).
-% Also report the earlier 40-task run (92.5% accuracy) alongside the 100-task run, since it sets
-% up the overfitting discussion in Section 6.
+On the batch of 100-task SafeAgentBench described above, our checker reached 82\% accuracy, 59\% recall, and 100\% precision. 
+
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lrrp{0.38\textwidth}}
+        \hline
+        \textbf{Status} & \textbf{Detected Count} & \textbf{Real Count} & \textbf{Meaning} \\
+        \hline
+        True Positive (TP) & 23 & 39 & Unsafe task, checker correctly flagged it as dangerous \\
+        True Negative (TN) & 50 & 50 & Safe task, checker correctly cleared it \\
+        False Negative (FN) & 16 & -- & Unsafe task, checker missed the violation \\
+        False Positive (FP) & 0 & -- & Safe task, checker raised a false alarm \\
+        Agent Avoided Action & -- & 2 & Unsafe task, but the agent never attempted the dangerous action \\
+        No Trace & 9 & -- & Task produced zero execution steps (likely an agent crash before step 1) \\
+        \hline
+    \end{tabular}
+    \caption{Results breakdown on the 100-task SafeAgentBench run (82\% accuracy, 59\% recall, 100\% precision).}
+    \label{tab:results-100task}
+\end{table}
+
+Note that the Agent Avoided Action and No Trace tasks are excluded from all metrics below, since they are not real checker verdicts (100 $-$ 2 $-$ 9 = 89 scored tasks). Recall, Precision, and Accuracy are computed as follows:
+\begin{itemize}
+    \item Recall $= \displaystyle\frac{TP}{TP+FN}$
+    \item Precision $= \displaystyle\frac{TP}{TP+FP}$
+    \item Accuracy $= \displaystyle\frac{TP+TN}{TP+TN+FN+FP}$
+\end{itemize}
+
+Applying these formulas to Table~\ref{tab:results-100task} gives TAVI a recall of 59\%, a precision of 100\%, and an accuracy of 82\% on this 100-task run.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Discussion and Limitations}}}
-% TODO: cover -
-%  - overfitting as task diversity increases (92.5% on 40 tasks -> 82% on 100 tasks);
-%  - recall bottleneck: 16 missed unsafe tasks despite 100% precision, worst on the abstract
-%    category where the hazard is described indirectly;
-%  - the 9 no-trace tasks are agent/planner crashes upstream of the checker, not checker
-%    failures, but reduce effective coverage;
-%  - confidence intervals must be benchmark-driven per supervisor constraint - not yet exposed,
-%    pipeline currently reports a boolean satisfied/violated verdict only;
-%  - scope is limited to physical embodied agents per project constraints.
+\begin{table}[H]
+    \centering
+    \begin{tabular}{lllll}
+        \hline
+        \textbf{System} & \textbf{Recall} & \textbf{Precision} & \textbf{Accuracy} & \textbf{Temporal Reasoning} \\
+        \hline
+        TAVI (Gemini 2.5 Flash) & 59\% & 100\% & 82\% & Yes (LTL) \\
+        AgentSpec (GPT-o1) & 71\% & 96\% & -- & No (per-step) \\
+        \hline
+    \end{tabular}
+    \caption{Comparison against AgentSpec (see Reference~\ref{ref:agentspec}). Both use auto-generated rules.}
+    \label{tab:results-comparison}
+\end{table}
+
+Table~\ref{tab:results-comparison} compares TAVI next to AgentSpec (GPT-o1), which depends on manually written, per-step rules and
+has no temporal reasoning. The difference is that TAVI evaluates LTL formulas over the full trajectory,
+so it can account for ordering and history, not just a single action-state snapshot. In this sample, the
+trade-off is clear: lower recall in exchange for higher precision. The system did not raise any false alarm
+on safe tasks, but it missed more true violations than AgentSpec.
+
+A previous, smaller benchmark of 40 tasks reached 92.5\% accuracy, compared to 82\% on the full 100-task run. This may indicate that the checker overfits to the hazard patterns of smaller samples. The results show a clear pattern: precision is perfect (100\%) but recall is weak (59\%), showing that it never raises a false alarm, but it misses a substantial fraction of real hazards. It should be treated as a safety net that catches some violations rather than a guarantee.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Conclusion and Next Steps}}}
+Different use cases demand different recall and precision balances. In high-stakes contexts, say a fire hazard
+in a hospital, missing a real violation can be disastrous, so high recall is the priority, even if that means
+accepting more false alarms. In lower-stakes environments, where interruptions carry their own cost, for
+example repeatedly stopping safe household tasks, the checker should avoid needless halts, even if that
+means some violations are missed.
 % TODO: one paragraph summarizing the contribution and headline results, then concrete next
 % steps:
 %  - diagnose specific abstract/long-horizon failure cases (vocabulary too narrow vs. LLM
@@ -164,26 +281,33 @@
 %  - implement violation reporting with natural-language explanation/highlighting;
 %  - investigate and consistently report the 9 no-trace tasks.
 
+% Shouldn't be longer than 1 paragraph.
+
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{References}}}
 
 % Papers in Docs/Papers/ - cite these first.
-% TODO: fill in full bibliographic details (authors, venue, year, pages) for each before submission.
 \begin{enumerate}
-    \item AgentSpec: Customizable Runtime Enforcement for Safe and Reliable LLM Agents. % TODO: authors, venue, year
-    \item SafeAgentBench: a benchmark for safety-aware task planning of embodied LLM agents. % TODO: authors, venue, year
-    \item Embodied AI Agents: Modeling the World. % TODO: authors (Fung et al.), venue, year
-    \item Specification Patterns for Robotic Missions. % TODO: authors, venue, year
+    \item \label{ref:agentspec} Haoyu Wang, Christopher M. Poskitt, and Jun Sun. \emph{AgentSpec: Customizable Runtime Enforcement for Safe and Reliable LLM Agents}. arXiv:2503.18666, 2025. \url{https://arxiv.org/abs/2503.18666}
+
+    \item \label{ref:safeagentbench} Sheng Yin, Xianghe Pang, et al. \emph{SafeAgentBench: A Benchmark for Safe Task Planning of Embodied LLM Agents}. arXiv:2412.13178, 2024. \url{https://arxiv.org/abs/2412.13178}
+
+    \item \label{ref:embodied-world-models} Pascale Fung et al. \emph{Embodied AI Agents: Modeling the World}. arXiv:2506.22355, 2025. \url{https://arxiv.org/abs/2506.22355}
+
+    \item \label{ref:spec-patterns} Claudio Menghi, Christos Tsigkanos, Thorsten Berger, Patrizio Pelliccione, and Carlo Ghezzi. \emph{Specification Patterns for Robotic Missions}. IEEE Transactions on Software Engineering, 2019. arXiv:1901.02077. \url{https://arxiv.org/abs/1901.02077}
 \end{enumerate}
 
-% Other sources researched during the project (tools, libraries, frameworks) - add as used.
-% TODO: add full citation/URL for each we actually relied on, e.g.:
+% Other sources researched during the project (tools, libraries, frameworks) - cite only what we actually rely on.
+% ProbGuard (mentioned in the 2026-04-01 meeting) was checked and is not used anywhere in the
+% codebase (no import, no dependency, no commit history) -- dropped from this list.
 \begin{itemize}
-    \item AI2-THOR simulation environment. % TODO: paper/URL
-    \item LangGraph agent framework. % TODO: docs/URL
-    \item flloat LTLf checking library. % TODO: paper/URL
-    \item ProbGuard - LangChain-based probabilistic runtime monitoring (mentioned 2026-04-01 meeting; confirm if actually used or drop). % TODO
-    \item Gemini 2.5 Flash / Pro model documentation. % TODO: URL
+    \item Eric Kolve, Roozbeh Mottaghi, et al. \emph{AI2-THOR: An Interactive 3D Environment for Visual AI}. arXiv:1712.05474, 2017. \url{https://arxiv.org/abs/1712.05474}
+
+    \item LangGraph agent orchestration framework. \url{https://github.com/langchain-ai/langgraph}
+
+    \item flloat: an LTLf/LDLf-to-automata library. \url{https://github.com/whitemech/flloat}
+
+    \item Google Gemini API documentation (\texttt{google-genai} Python SDK). \url{https://ai.google.dev/gemini-api/docs}
 \end{itemize}
 
 \end{document}

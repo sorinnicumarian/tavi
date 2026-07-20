@@ -93,6 +93,23 @@
 %    templates are instantiated from (Section 3.3).
 %  - Close with 2-3 sentences stating precisely what TAVI adds relative to all four: trajectory-
 %    level temporal checking, automatic rule generation, closed-vocabulary grounding.
+\textbf{AgentSpec} [1] provides a tool which allows LLM agents to detect action violations and enforce safety rules. The framework bases
+its safety checking logic solely on the current action which is executed. Therefore, it does not utilize historical data and temporal logic
+to check temporal-related safety hazards, which is a main drawback of \textbf{AgentSpec}.
+
+\textbf{SafeAgentBench} [2] provides a benchmark for measuring how safe an embodied LLM agent is when performing a variety of tasks in a
+household setting. Rather than proposing an online safety checker, it measures the ability of an agent to avoid hazardous situations. 
+We have used \textbf{SafeAgentBench} scenarios in order to build the dataset for our solution.
+
+\textbf{Embodied AI Agents: Modeling the World} [3] provides a general description of embodied AI agents with three main categories: virtual, wearable, and physical agents. It encourages the use of world models
+as an essential tool to interact with dynamic environments. Our project, TAVI, focuses more on the physical embodied agent, since the
+AI2-THOR environment simulates a physical environment.
+
+\textbf{Specification Patterns for Robotic Missions} [4] provides a catalogue of LTL and CTL specification patterns for robotic missions. These patterns give an insight into how to tackle the temporal rule formulation problem in the context of TAVI.
+
+Different to previous approaches, TAVI provides a temporal-based safety checker for embodied AI agents while also providing an automatic rule creator. Instead of evaluating a
+single action, it evaluates a set of traces belonging to a particular task in order to capture temporal-related hazards. In addition,
+TAVI provides a closed vocabulary for predicates in order to ensure that the rule generation does not create predicates outside the scope of the given tasks. 
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Proposed Solution}}}

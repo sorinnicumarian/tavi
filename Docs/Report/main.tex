@@ -81,6 +81,20 @@
 % Also mention/footnote the GitHub repo (already linked in the deliverable-info table on the
 % front page): https://github.com/sorinnicumarian/tavi
 
+Nowadays, large language models (LLMs) in the shape of embodied agents are able to interact with a physical and virtual environment in an autonomous manner.
+These agents have the ability to strategize and execute tasks given instructions in natural language. As agent autonomy is becoming more
+and more of a priority, ensuring that it does not perform unsafe behaviours constitutes a crucial challenge to overcome, especially considering
+hazards which depend on temporal logic. Current frameworks, such as \textbf{AgentSpec} [1], are able to check the safety of a given action and perform the necessary failsafes.
+However, this framework is limited to using the logic of a single step to determine if safety violations occur or not. It does not detect
+problems which require temporal logic reasoning to detect, thus missing on a crucial subset of safety hazards. For this reason, we
+have proposed TAVI, a framework which bolsters safety checking by generating rules following a termporal logic approach. For our solution,
+we have implemented LTL rules which allow you to define rules in a multitude of temporal patterns. Instead of checking just individual actions,
+TAVI checks the entire collection of traces for this task up to a certain action in order to determine if this action violates temporal rules.
+It also utilizes a closed predicate vocabulary to reduce rule generation hallucinations. TAVI also supports online safety checking. The TAVI GitHub repo
+is as follows: \url{https://github.com/sorinnicumarian/tavi}. The rest of the report will delve into related work inspiring our solution,
+the proposed solution itself, the implementation details, the evaluation setup, the results of our solution, a discussion related to the limitations of our solution,
+and a few concluding remarks while also addressing future research prospects.
+
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Related Work}}}
 % TODO: one short paragraph each on:

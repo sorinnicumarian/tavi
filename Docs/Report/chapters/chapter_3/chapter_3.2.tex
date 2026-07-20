@@ -1,7 +1,20 @@
-To enable temporal verification, every interaction between the agent and the AI2-THOR environment is recorded as a structured execution trace. Trace collection is performed by the \texttt{TraceCollector}, which captures the environment state immediately before and after each executed action. The metadata returned by AI2-THOR are converted into a symbolic representation consisting of grounded predicates, while the executed action is encoded as an \texttt{exec} predicate describing the event that occurred during the transition.
+To capture temporal dependencies, we have traced every interaction that the agent has with the AI2-THOR environment. The \texttt{TraceCollector}
+class is responsible for collecting the trace information of the environment after each action. Every detail in the trace is transformed
+into meaningful predicates used later for LTL checking. 
 
-Each execution step is stored as a JSONL record containing the task identifier, step identifier, timestamp, executed action, grounded predicates describing the post-action state, the predicates added or removed with respect to the previous state, the agent pose, and the execution outcome. Recording traces incrementally in JSONL format enables online verification, since each newly generated state can be translated and checked immediately without waiting for the entire task to finish.
+We store each task step as a JSONL file which conveys the task identifier, step identifier, timestamp, executed action, predicates,
+predicates added or removed during this step, and the execution result. Since we update the JSONL file incrementally after each step, 
+this allows us to conduct online verification as we can access the file after each step. 
 
-Rather than exposing the full AI2-THOR metadata, the framework extracts a fixed vocabulary of Boolean predicates relevant for safety verification. The vocabulary includes \emph{spatial predicates} (e.g., \texttt{visible}, \texttt{near}, \texttt{on}), \emph{dynamic state predicates} (e.g., \texttt{holding}, \texttt{open}, \texttt{toggled\_on}, \texttt{hot}, \texttt{cold}, \texttt{broken}), \emph{capability predicates} (e.g., \texttt{pickupable}, \texttt{toggleable}, \texttt{openable}), and manually defined \emph{semantic hazard predicates} such as \texttt{flammable}, \texttt{heat\_source}, \texttt{sharp}, \texttt{electrical}, and \texttt{chemical}. In addition, every executed action is represented by an event predicate of the form \texttt{exec\_\_ActionName\_\_Object}, allowing LTL specifications to reason over both object states and agent actions.
+The proposed framework does not retrieve all of the AI2-THOR possible metadata. Rather, it retrieves only a limited vocabulary of predicates
+which are directly related to safety checking. The vocabulary consists of predicates like \texttt{visible}, \texttt{near}, 
+\texttt{on}, \texttt{holding}, \texttt{open}, \texttt{toggled\_on}, \texttt{hot}, \texttt{cold}, \texttt{broken}, 
+\texttt{pickupable}, \texttt{toggleable}, \texttt{openable}, \texttt{flammable}, \texttt{heat\_source}, \texttt{sharp}, 
+\texttt{electrical}, and \texttt{chemical}. Furthermore, we also express actions in terms of predicates, storing them with the template
+\texttt{exec\_\_ActionName\_\_Object}, as we utilize the object predicates of previous steps and the action predicate of the next step
+to see if the action will be hazardous or not.
 
-To ensure consistency between trace generation and rule synthesis, the system enforces a \emph{closed predicate vocabulary}. During early experiments, the LLM occasionally generated LTL formulas containing predicates that were not present in the collected traces, causing formulas to evaluate as vacuously true and allowing safety violations to remain undetected. This issue was resolved by introducing the \texttt{trace\_predicates.md} specification, which defines the complete set of predicates that may appear in execution traces. This specification is provided as context during LTL rule generation, ensuring that every generated proposition is observable and therefore verifiable by the runtime checker.
+The reason why we chose a closed predicate vocabulary is because leaving the vocabulary open would often produce new rule predicates which
+were not part of the original traces, leading to traces automatically complying to the rules and leaving potential hazards undetected. 
+This problem was fixed by the \texttt{trace\_predicates.md} file, which inludes all the predicates that can appear in the traces. The file
+is utilized as context to the LTL rule generator, ensuring that the predicates are consistent between traces and the rules.

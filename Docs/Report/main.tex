@@ -49,8 +49,7 @@
 \textbf{Supervisor:} & Matteo Camilli \\
 \textbf{Version:} & 1 \\
 \textbf{Repository:} & \url{https://github.com/sorinnicumarian/tavi} \\
-\textbf{Date:} & % TODO
-\\
+\textbf{Date:} & 21-July-2026 \\
 \hline
 \end{tabu}
 \end{table}
@@ -70,7 +69,6 @@
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Abstract}}}
-% TODO: small description of what we have done, what the contribution is, and what the results are.
 Embodied AI agents are increasingly reliant on huge language models 
 to read natural-language commands, plan complex tasks, and interact 
 autonomously in physical or virtual contexts [\ref{ref:embodied-world-models}]. 
@@ -92,39 +90,24 @@ dangerous behavior.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Introduction}}}
-% TODO: motivate the problem - per-step checking (AgentSpec) misses hazards that only show up
-% across a trajectory (e.g. an object made unsafe by an earlier action). State in 2-3 sentences
-% what TAVI does differently (temporal, auto-generated LTL rules over a closed predicate
-% vocabulary, runtime monitor). End with a one-sentence roadmap of the rest of the report.
-% Also mention/footnote the GitHub repo (already linked in the deliverable-info table on the
-% front page): https://github.com/sorinnicumarian/tavi
-
 Nowadays, large language models (LLMs) in the shape of embodied agents are able to interact with a physical and virtual environment in an autonomous manner.
 These agents have the ability to strategize and execute tasks given instructions in natural language. As agent autonomy is becoming more
 and more of a priority, ensuring that it does not perform unsafe behaviours constitutes a crucial challenge to overcome, especially considering
 hazards which depend on temporal logic. Current frameworks, such as \textbf{AgentSpec}~[\ref{ref:agentspec}], are able to check the safety of a given action and perform the necessary failsafes.
 However, this framework is limited to using the logic of a single step to determine if safety violations occur or not. It does not detect
-problems which require temporal logic reasoning to detect, thus missing on a crucial subset of safety hazards. For this reason, we
+problems which require temporal logic reasoning to detect, thus missing out on a crucial subset of safety hazards.
+
+For this reason, we
 have proposed TAVI, a framework which bolsters safety checking by generating rules following a temporal logic approach. For our solution,
-we have implemented LTL rules which allow you to define rules in a multitude of temporal patterns. Instead of checking just individual actions,
+we have implemented LTL rules which allow rule authors to define rules in a multitude of temporal patterns. Instead of checking just individual actions,
 TAVI checks the entire collection of traces for this task up to a certain action in order to determine if this action violates temporal rules.
-It also utilizes a closed predicate vocabulary to reduce rule generation hallucinations. TAVI also supports online safety checking. The TAVI GitHub repo
-is as follows: \url{https://github.com/sorinnicumarian/tavi}. The rest of the report will delve into related work inspiring our solution,
+It also utilizes a closed predicate vocabulary to reduce rule generation hallucinations. TAVI also supports online safety checking. TAVI's source code is
+available at \url{https://github.com/sorinnicumarian/tavi}. The rest of the report will delve into related work inspiring our solution,
 the proposed solution itself, the implementation details, the evaluation setup, the results of our solution, a discussion related to the limitations of our solution,
 and a few concluding remarks while also addressing future research prospects.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Related Work}}}
-% TODO: one short paragraph each on:
-%  - AgentSpec: trigger/check/enforce DSL, per-step only, manually authored rules.
-%  - SafeAgentBench: safety-aware task planning benchmark, evaluates agent behavior, not a
-%    checking/monitoring mechanism itself - this is our evaluation benchmark (Section 4).
-%  - Embodied AI Agents (Fung et al.): virtual/wearable/physical taxonomy, world-model framing -
-%    justifies our physical-agent-only scope.
-%  - Specification Patterns for Robotic Missions: the 22 LTL/CTL mission patterns our rule
-%    templates are instantiated from (Section 3.3).
-%  - Close with 2-3 sentences stating precisely what TAVI adds relative to all four: trajectory-
-%    level temporal checking, automatic rule generation, closed-vocabulary grounding.
 \textbf{AgentSpec}~[\ref{ref:agentspec}] provides a tool which allows LLM agents to detect action violations and enforce safety rules. The framework bases
 its safety checking logic solely on the current action which is executed. Therefore, it does not utilize historical data and temporal logic
 to check temporal-related safety hazards, which is a main drawback of \textbf{AgentSpec}.
@@ -139,15 +122,12 @@ AI2-THOR environment simulates a physical environment.
 
 \textbf{Specification Patterns for Robotic Missions}~[\ref{ref:spec-patterns}] provides a catalogue of LTL and CTL specification patterns for robotic missions. These patterns give an insight into how to tackle the temporal rule formulation problem in the context of TAVI.
 
-Different to previous approaches, TAVI provides a temporal-based safety checker for embodied AI agents while also providing an automatic rule creator. Instead of evaluating a
+Unlike previous approaches, TAVI provides a temporal-based safety checker for embodied AI agents while also providing an automatic rule creator. Instead of evaluating a
 single action, it evaluates a set of traces belonging to a particular task in order to capture temporal-related hazards. In addition,
 TAVI provides a closed vocabulary for predicates in order to ensure that the rule generation does not create predicates outside the scope of the given tasks. 
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Proposed Solution}}}
-% TODO: here we should describe an high-level overview of the proposed solution, including the main components and their interactions. 
-% We can also include a diagram to illustrate the architecture and data flow. Shouldn't be longer than 1 page, 
-% and should be written in a way that is understandable to someone who is not familiar with the project. 
 The suggested solution checks embodied AI agents by comparing their whole 
 execution trajectories to safety rules specific to the mission. The key 
 premise is that harmful behaviour can evolve from a series of activities, 
@@ -155,17 +135,11 @@ even if no single action is dangerous by itself. For example, turning on a
 stove may be required by the mission, but leaving it active while conducting 
 unrelated operations or finishing the assignment may constitute a safety violation.
 
-% Maybe here we can add the pipeline overview
 {\color{Blue}{\subsection{Pipeline Overview}}}
-% TODO: describe the 5 conceptual modules (trace collector, rule generation, trace
-% translation/grounding, LTL checking, runtime monitor); state which are implemented end-to-end
-% vs. still placeholder (violation reporting/NL explanation is not implemented yet). Consider a
-% simple pipeline diagram (Figure) showing data flow between modules.
-
 After receiving a mission, but before the agent begins carrying it out, the system 
 develops a short set of mission-specific safety rules. The mission description is 
 analyzed alongside contextual information regarding AI2-THOR operations, object 
-properties, hazard categories [\ref{ref:agentspec}], and temporal specification patterns [\ref{ref:spec-patterns}]. 
+properties, hazard categories [\ref{ref:safeagentbench}], and temporal specification patterns [\ref{ref:spec-patterns}].
 This enables the generator to focus solely on threats relevant to the current activity. 
 For example, a mission containing a stove may have rules governing heat sources and 
 eventual shutdown, whereas a mission including fragile things may require rules 
@@ -203,33 +177,13 @@ and which temporal safety violations occurred.
 {\color{Blue}{\section{Implementation Details}}}
 
 {\color{Blue}{\subsection{Trace Collection and Predicate Vocabulary}}}
-% TODO: describe the JSONL trace schema (step id, timestamp, action, pre/post state,
-% observation, propositions, llm_call, tool_calls, outcome). Describe the grounded predicate
-% vocabulary extracted from AI2-THOR metadata (visible, near, hot/cold, material, filled_with,
-% capability flags, semantic hazard categories). Explain the closed-vocabulary contract
-% (trace_predicates.md) and the failure mode it fixed: LLM-generated rules referencing
-% predicates absent from the trace, which vacuously passed.
 \input{chapters/chapter_3/chapter_3.2.tex}
 
 {\color{Blue}{\subsection{Rule Generation}}}
-% TODO: describe online, per-task, cached LTL rule generation via Gemini 2.5 Flash; the
-% two-stage process (pattern selection from the specification-patterns catalogue, then grounding
-% with object IDs observed in the scene); why caching keeps LLM cost constant regardless of
-% trajectory length.
 \input{chapters/chapter_3/chapter_3.3.tex}
 
 {\color{Blue}{\subsection{LTL Checking}}}
-% TODO: describe flloat/LTLf checking mechanics, what "violation" means operationally over a
-% finite trace, and how the runtime monitor (main.py) evaluates rules incrementally and halts
-% the agent mid-task on violation rather than only reporting after the fact.
 \input{chapters/chapter_3/chapter_3.4.tex}
-
-{\color{Blue}{\subsection{Implementation Notes}}}
-% TODO: pick 2-3 concrete engineering details worth reporting:
-%  - agent_executed detection fix (planner error strings no longer counted as executed actions).
-%  - parallel benchmark runner (run_phases.py, 4 files concurrently).
-%  - Gemini Flash vs Pro tradeoff on long-horizon tasks (SR 0.86 vs 0.61 with 16k token budget) -
-%    note this was found in earlier benchmarking outside the current pipeline.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Evaluation Setup}}}
@@ -260,7 +214,6 @@ SafeAgentEnv environment. The simulation is controlled and supports running many
 keeps evaluation and development costs down. The benchmark output is a Boolean satisfied/violated
 verdict.
 
-% Shouldn't be longer than 1 paragraph.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Results}}}
@@ -291,11 +244,8 @@ Note that the Agent Avoided Action and No Trace tasks are excluded from all metr
     \item Accuracy $= \displaystyle\frac{TP+TN}{TP+TN+FN+FP}$
 \end{itemize}
 
-Applying these formulas to Table~\ref{tab:results-100task} gives TAVI a recall of 59\%, a precision of 100\%, and an accuracy of 82\% on this 100-task run.
-
-% Shouldn't be longer than 1 paragraph.
-
 %------------------------------------------------------------------------------------------------------------------------------------------------
+\clearpage
 {\color{Blue}{\section{Discussion and Limitations}}}
 \begin{table}[H]
     \centering
@@ -319,27 +269,21 @@ on safe tasks, but it missed more true violations than AgentSpec.
 
 A previous, smaller benchmark of 40 tasks reached 92.5\% accuracy, compared to 82\% on the full 100-task run. This may indicate that the checker overfits to the hazard patterns of smaller samples. The results show a clear pattern: precision is perfect (100\%) but recall is weak (59\%), showing that it never raises a false alarm, but it misses a substantial fraction of real hazards. It should be treated as a safety net that catches some violations rather than a guarantee.
 
-% Shouldn't be longer than 1 paragraph.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Conclusion and Next Steps}}}
+TAVI extends per-step safety checking to trajectory-level verification, checking embodied AI agents against automatically generated LTL rules over a closed predicate vocabulary. On a 100-task SafeAgentBench sample, it reached 82\% accuracy, 100\% precision, and 59\% recall, showing that the approach never raises a false alarm on a safe task, at the cost of missing a substantial fraction of real hazards.
+
 Different use cases demand different recall and precision balances. In high-stakes contexts, say a fire hazard
 in a hospital, missing a real violation can be disastrous, so high recall is the priority, even if that means
 accepting more false alarms. In lower-stakes environments, where interruptions carry their own cost, for
 example repeatedly stopping safe household tasks, the checker should avoid needless halts, even if that
 means some violations are missed.
-% TODO: one paragraph summarizing the contribution and headline results, then concrete next
-% steps:
-%  - diagnose specific abstract/long-horizon failure cases (vocabulary too narrow vs. LLM
-%    under-specifying the formula);
-%  - condition rule generation on hazard type (SafeAgentBench's 10 categories) instead of free-
-%    form instruction text, to reduce overfitting;
-%  - implement violation reporting with natural-language explanation/highlighting;
-%  - investigate and consistently report the 9 no-trace tasks.
 
-% Shouldn't be longer than 1 paragraph.
+Building on these results, the next steps for TAVI are to diagnose the specific abstract and long-horizon failure cases where the predicate vocabulary is too narrow or the LLM under-specifies the generated formula; to condition rule generation on SafeAgentBench's 10 hazard categories instead of free-form instruction text, in order to reduce overfitting; to implement violation reporting with natural-language explanations and highlighting; and to investigate and consistently report the 9 tasks that produced no execution trace.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
+\clearpage
 {\color{Blue}{\section{References}}}
 
 % Papers in Docs/Papers/ - cite these first.

@@ -1,0 +1,30 @@
+After the mission command is received and before the agent starts 
+carrying it out, safety rules are generated. As a result, rule 
+creation is carried out independently for every job, enabling the 
+framework to generate a limited set of safety attributes specific 
+to the objects, activities, and risks involved in the present 
+mission. The mission description serves as the main input for the 
+generating process, and traces are only utilized in the verification 
+stage that follows. The rules are not derived from execution traces.
+
+To generate rules, an LLM that is given controlled contextual information 
+about the execution environment. This context includes actions and object 
+states that AI2-THOR supports, the types of embodied-agent dangers, reusable 
+temporal specification patterns, and the predicate vocabulary revealed by the 
+trace collection component. The temporal patterns provide common structures 
+such as global avoidance, conditional response, and eventual resolution, 
+while the hazard taxonomy guides the identification of potentially unsafe 
+behaviours. Providing this information explicitly reduces the reliance on 
+unrestricted commonsense reasoning and constrains the generated rules to 
+concepts supported by the framework.
+
+The first stage generates structured plain-English safety rules, which 
+identify relevant dangers and define temporal requirements in 
+machine-readable JSON format. Each rule has a rule identification, 
+title, hazard category and plain-English explanation. The generated 
+rules are converted into parameterized LTL templates, employing 
+placeholders like \texttt{x} for relevant items. This translation 
+is limited to the normalized atomic propositions defined by the trace 
+vocabulary, and requirements based on unavailable information are 
+ignored. Before verification, placeholders are instantiated with 
+concrete object identifiers to create completely grounded LTLf formulas.

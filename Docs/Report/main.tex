@@ -71,6 +71,24 @@
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Abstract}}}
 % TODO: small description of what we have done, what the contribution is, and what the results are.
+Embodied AI agents are increasingly reliant on huge language models 
+to read natural-language commands, plan complex tasks, and interact 
+autonomously in physical or virtual contexts [\ref{ref:embodied-world-models}]. 
+However, their ability to carry out long-term sequences of actions raises safety 
+issues that cannot be detected solely by examining individual acts or ultimate 
+task outcomes. Unsafe behaviour may instead result from temporal linkages 
+between acts and changing environmental states, such as activating an appliance 
+and neglecting to deactivate it, transporting a combustible object near a heat 
+source, or leaving a hazardous condition unresolved.
+
+This study introduces a paradigm for temporal verification of embodied AI agents 
+in AI2-THOR. Before execution, a large language model generates mission-specific 
+safety requirements, which are then translated into parameterized 
+Linear Temporal Logic over finite traces (LTLf) templates and instantiated for 
+the task. During execution, agent actions and environmental conditions are 
+captured as a symbolic trace, and the grounded LTLf requirements are assessed 
+gradually to find violations, identify the relevant rule and step, and stop 
+dangerous behavior.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Introduction}}}
@@ -147,7 +165,7 @@ unrelated operations or finishing the assignment may constitute a safety violati
 After receiving a mission, but before the agent begins carrying it out, the system 
 develops a short set of mission-specific safety rules. The mission description is 
 analyzed alongside contextual information regarding AI2-THOR operations, object 
-properties, hazard categories (TODO cite), and temporal specification patterns (TODO cite). 
+properties, hazard categories [\ref{ref:agentspec}], and temporal specification patterns [\ref{ref:spec-patterns}]. 
 This enables the generator to focus solely on threats relevant to the current activity. 
 For example, a mission containing a stove may have rules governing heat sources and 
 eventual shutdown, whereas a mission including fragile things may require rules 
@@ -198,6 +216,7 @@ and which temporal safety violations occurred.
 % two-stage process (pattern selection from the specification-patterns catalogue, then grounding
 % with object IDs observed in the scene); why caching keeps LLM cost constant regardless of
 % trajectory length.
+\input{chapters/chapter_3/chapter_3.3.tex}
 
 {\color{Blue}{\subsection{LTL Checking}}}
 % TODO: describe flloat/LTLf checking mechanics, what "violation" means operationally over a
@@ -241,6 +260,8 @@ SafeAgentEnv environment. The simulation is controlled and supports running many
 keeps evaluation and development costs down. The benchmark output is a Boolean satisfied/violated
 verdict.
 
+% Shouldn't be longer than 1 paragraph.
+
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Results}}}
 On the batch of 100-task SafeAgentBench described above, our checker reached 82\% accuracy, 59\% recall, and 100\% precision. 
@@ -272,6 +293,8 @@ Note that the Agent Avoided Action and No Trace tasks are excluded from all metr
 
 Applying these formulas to Table~\ref{tab:results-100task} gives TAVI a recall of 59\%, a precision of 100\%, and an accuracy of 82\% on this 100-task run.
 
+% Shouldn't be longer than 1 paragraph.
+
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Discussion and Limitations}}}
 \begin{table}[H]
@@ -295,6 +318,8 @@ trade-off is clear: lower recall in exchange for higher precision. The system di
 on safe tasks, but it missed more true violations than AgentSpec.
 
 A previous, smaller benchmark of 40 tasks reached 92.5\% accuracy, compared to 82\% on the full 100-task run. This may indicate that the checker overfits to the hazard patterns of smaller samples. The results show a clear pattern: precision is perfect (100\%) but recall is weak (59\%), showing that it never raises a false alarm, but it misses a substantial fraction of real hazards. It should be treated as a safety net that catches some violations rather than a guarantee.
+
+% Shouldn't be longer than 1 paragraph.
 
 %------------------------------------------------------------------------------------------------------------------------------------------------
 {\color{Blue}{\section{Conclusion and Next Steps}}}

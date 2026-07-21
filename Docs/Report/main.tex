@@ -84,10 +84,10 @@
 Nowadays, large language models (LLMs) in the shape of embodied agents are able to interact with a physical and virtual environment in an autonomous manner.
 These agents have the ability to strategize and execute tasks given instructions in natural language. As agent autonomy is becoming more
 and more of a priority, ensuring that it does not perform unsafe behaviours constitutes a crucial challenge to overcome, especially considering
-hazards which depend on temporal logic. Current frameworks, such as \textbf{AgentSpec} [1], are able to check the safety of a given action and perform the necessary failsafes.
+hazards which depend on temporal logic. Current frameworks, such as \textbf{AgentSpec}~[\ref{ref:agentspec}], are able to check the safety of a given action and perform the necessary failsafes.
 However, this framework is limited to using the logic of a single step to determine if safety violations occur or not. It does not detect
 problems which require temporal logic reasoning to detect, thus missing on a crucial subset of safety hazards. For this reason, we
-have proposed TAVI, a framework which bolsters safety checking by generating rules following a termporal logic approach. For our solution,
+have proposed TAVI, a framework which bolsters safety checking by generating rules following a temporal logic approach. For our solution,
 we have implemented LTL rules which allow you to define rules in a multitude of temporal patterns. Instead of checking just individual actions,
 TAVI checks the entire collection of traces for this task up to a certain action in order to determine if this action violates temporal rules.
 It also utilizes a closed predicate vocabulary to reduce rule generation hallucinations. TAVI also supports online safety checking. The TAVI GitHub repo
@@ -107,19 +107,19 @@ and a few concluding remarks while also addressing future research prospects.
 %    templates are instantiated from (Section 3.3).
 %  - Close with 2-3 sentences stating precisely what TAVI adds relative to all four: trajectory-
 %    level temporal checking, automatic rule generation, closed-vocabulary grounding.
-\textbf{AgentSpec} [1] provides a tool which allows LLM agents to detect action violations and enforce safety rules. The framework bases
+\textbf{AgentSpec}~[\ref{ref:agentspec}] provides a tool which allows LLM agents to detect action violations and enforce safety rules. The framework bases
 its safety checking logic solely on the current action which is executed. Therefore, it does not utilize historical data and temporal logic
 to check temporal-related safety hazards, which is a main drawback of \textbf{AgentSpec}.
 
-\textbf{SafeAgentBench} [2] provides a benchmark for measuring how safe an embodied LLM agent is when performing a variety of tasks in a
+\textbf{SafeAgentBench}~[\ref{ref:safeagentbench}] provides a benchmark for measuring how safe an embodied LLM agent is when performing a variety of tasks in a
 household setting. Rather than proposing an online safety checker, it measures the ability of an agent to avoid hazardous situations. 
 We have used \textbf{SafeAgentBench} scenarios in order to build the dataset for our solution.
 
-\textbf{Embodied AI Agents: Modeling the World} [3] provides a general description of embodied AI agents with three main categories: virtual, wearable, and physical agents. It encourages the use of world models
+\textbf{Embodied AI Agents: Modeling the World}~[\ref{ref:embodied-world-models}] provides a general description of embodied AI agents with three main categories: virtual, wearable, and physical agents. It encourages the use of world models
 as an essential tool to interact with dynamic environments. Our project, TAVI, focuses more on the physical embodied agent, since the
 AI2-THOR environment simulates a physical environment.
 
-\textbf{Specification Patterns for Robotic Missions} [4] provides a catalogue of LTL and CTL specification patterns for robotic missions. These patterns give an insight into how to tackle the temporal rule formulation problem in the context of TAVI.
+\textbf{Specification Patterns for Robotic Missions}~[\ref{ref:spec-patterns}] provides a catalogue of LTL and CTL specification patterns for robotic missions. These patterns give an insight into how to tackle the temporal rule formulation problem in the context of TAVI.
 
 Different to previous approaches, TAVI provides a temporal-based safety checker for embodied AI agents while also providing an automatic rule creator. Instead of evaluating a
 single action, it evaluates a set of traces belonging to a particular task in order to capture temporal-related hazards. In addition,
